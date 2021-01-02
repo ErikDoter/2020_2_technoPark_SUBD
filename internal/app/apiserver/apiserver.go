@@ -48,7 +48,9 @@ func (s *APIServer) InitHandler() (userHandler.UserHandler){
 func (s *APIServer) configureRouter() {
 	user := s.InitHandler()
 	//User routes ...
-	s.router.HandleFunc("/api/user/{nickname:[A-z]+}/profile", user.FindByNickname)
+	s.router.HandleFunc("/api/user/{nickname:[A-z0-9](?:[-_\\.]?[A-z0-9])*}/profile", user.FindByNickname).Methods("GET")
+	s.router.HandleFunc("/api/user/{nickname:[A-z0-9](?:[-_\\.]?[A-z0-9])*}/profile", user.Update).Methods("POST")
+	s.router.HandleFunc("/api/user/{nickname:[A-z0-9](?:[-_\\.]?[A-z0-9])*}/create", user.Create)
 }
 
 func (s *APIServer) configureStore() error {

@@ -22,3 +22,19 @@ func (u *UserUseCase) FindByNickname(nickname string) (*models.User, *models.Err
 	}
 	return user, nil
 }
+
+func (u *UserUseCase) Create(nickname string, fullname string, about string, email string) (*models.Users, *models.Error) {
+	users, err := u.UserRepository.Create(nickname, fullname, about, email)
+	if err != nil {
+		return users, err
+	}
+	return users, nil
+}
+
+func (u *UserUseCase) Update(nickname string, fullname string, about string, email string) (*models.User, *models.Error) {
+	user, err := u.UserRepository.Update(nickname, fullname, about, email)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}

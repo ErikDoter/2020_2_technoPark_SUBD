@@ -41,7 +41,7 @@ where nickname = 'ErikDoter';
 
 UPDATE users
 set about = 'Erikkkkk',
-    email = 'qwerty@mail.ru',
+    email = 'dummy12@mail.ru',
     fullname = 'Erik NeNabiev'
 where nickname = 'ErikDoter';
 

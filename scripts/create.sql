@@ -10,6 +10,7 @@ create table users
     fullname varchar(80) not null,
     email    varchar(80) not null,
     about    text        not null,
+    unique (email),
     unique(nickname)
 );
 
@@ -54,7 +55,7 @@ create table votes
     id int auto_increment primary key,
     nickname varchar(80) not null,
     thread int not null,
-    vote int;
+    vote int
 );
 
 CREATE TRIGGER triggerPosts
