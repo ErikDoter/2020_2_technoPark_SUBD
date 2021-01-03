@@ -10,3 +10,11 @@ type Thread struct {
 	Title string `json:"title"`
 	Votes int32 `json:"votes"`
 }
+
+type IdOrSlug struct {
+	Slug string
+	Id int
+	IsSlug bool
+}
+
+type Threads []Thread

@@ -2,7 +2,6 @@ package delivery
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/user"
 	"github.com/gorilla/mux"
@@ -45,7 +44,6 @@ func (uh *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	users, err1 := uh.UseCase.Create(user.Nickname, user.Fullname, user.About, user.Email)
 	result, err := json.Marshal(users)
 	if err != nil {
-		fmt.Println("erik2")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

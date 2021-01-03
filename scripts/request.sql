@@ -23,7 +23,7 @@ where slug = 'dota_stories';
 
 -- /forum/{dota_stories}/threads/?limit=1&since=0&desc=0
 
-select * from threads
+select id, title, author, forum, message, votes, slug, created from threads
 where forum = 'dota_stories' and created > 0
 order by created LIMIT 1;
 
