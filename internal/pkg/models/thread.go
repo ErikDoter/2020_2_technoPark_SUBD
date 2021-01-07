@@ -17,4 +17,14 @@ type IdOrSlug struct {
 	IsSlug bool
 }
 
+type ThreadUpdate struct {
+	Message string `json:"message"`
+	Title string `json:"title"`
+}
+
+type ThreadVote struct {
+	Nickname string `json:"nickname"`
+	Voice int `json:"voice"`
+}
+
 type Threads []Thread

@@ -78,7 +78,7 @@ func (s *APIServer) InitHandler() (userHandler.UserHandler, forumHandler.ForumHa
 }
 
 func (s *APIServer) configureRouter() {
-	user, forum, thread, _, _ := s.InitHandler()
+	user, forum, thread, post, service := s.InitHandler()
 	//User routes ...
 	s.router.HandleFunc("/api/user/{nickname:[A-z0-9](?:[-_\\.]?[A-z0-9])*}/profile", user.FindByNickname).Methods("GET")
 	s.router.HandleFunc("/api/user/{nickname:[A-z0-9](?:[-_\\.]?[A-z0-9])*}/profile", user.Update).Methods("POST")
@@ -91,6 +91,17 @@ func (s *APIServer) configureRouter() {
 	s.router.HandleFunc("/api/forum/{slug}/threads", forum.ShowThreads).Methods("GET")
 	//thread
 	s.router.HandleFunc("/api/thread/{slug_or_id}/details", thread.Find).Methods("GET")
+	s.router.HandleFunc("/api/thread/{slug_or_id}/create", thread.CreatePosts).Methods("POST")
+	s.router.HandleFunc("/api/thread/{slug_or_id}/details", thread.Update).Methods("POST")
+	s.router.HandleFunc("/api/thread/{slug_or_id}/vote", thread.Vote).Methods("POST")
+
+	//post
+	s.router.HandleFunc("/api/post/{id}/details", post.Find).Methods("GET")
+	s.router.HandleFunc("/api/post/{id}/details", post.Update).Methods("POST")
+
+	//service
+	s.router.HandleFunc("/api/service/status", service.Status).Methods("GET")
+	s.router.HandleFunc("/api/service/clear", service.Clear)
 }
 
 func (s *APIServer) configureStore() error {

@@ -17,3 +17,16 @@ type PostFull struct {
 	Post Post `json:"post"`
 	Thread Thread `json:"thread"`
 }
+
+type PostMini struct {
+	Parent int64 `json:"parent"`
+	Author string `json:"author"`
+	Message string `json:"message"`
+}
+
+type PostMessage struct {
+	Message string `json:"message"`
+}
+
+type PostsMini []PostMini
+type Posts []Post

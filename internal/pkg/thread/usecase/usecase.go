@@ -32,3 +32,54 @@ func (u *ThreadUseCase) Find(slugOrId string) (*models.Thread, *models.Error) {
 	}
 	return thread, nil
 }
+
+func (u *ThreadUseCase) CreatePosts(slugOrId string, posts models.PostsMini) (*models.Posts, *models.Error) {
+	soi := models.IdOrSlug{}
+	result, err1 := strconv.Atoi(slugOrId)
+	if err1 != nil {
+		soi.Slug = slugOrId
+		soi.IsSlug = true
+	} else {
+		soi.Id = result
+		soi.IsSlug = false
+	}
+	postsAnswer, err := u.ThreadRepository.CreatePosts(soi, posts)
+	if err != nil {
+		return nil, err
+	}
+	return postsAnswer, nil
+}
+
+func (u *ThreadUseCase) Update(slugOrId string, message string, title string) (*models.Thread, *models.Error) {
+	soi := models.IdOrSlug{}
+	result, err1 := strconv.Atoi(slugOrId)
+	if err1 != nil {
+		soi.Slug = slugOrId
+		soi.IsSlug = true
+	} else {
+		soi.Id = result
+		soi.IsSlug = false
+	}
+	thread, err := u.ThreadRepository.Update(soi, title, message)
+	if err != nil {
+		return nil, err
+	}
+	return thread, nil
+}
+
+func (u *ThreadUseCase) Vote(slugOrId string, nickname string, vote int) (*models.Thread, *models.Error) {
+	soi := models.IdOrSlug{}
+	result, err1 := strconv.Atoi(slugOrId)
+	if err1 != nil {
+		soi.Slug = slugOrId
+		soi.IsSlug = true
+	} else {
+		soi.Id = result
+		soi.IsSlug = false
+	}
+	thread, err := u.ThreadRepository.Vote(soi, nickname, vote)
+	if err != nil {
+		return nil, err
+	}
+	return thread, nil
+}

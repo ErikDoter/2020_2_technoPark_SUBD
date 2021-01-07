@@ -29,12 +29,12 @@ create table threads
 (
     id int auto_increment primary key,
     author varchar(80) not null,
-    created DATETIME DEFAULT NOW() ON UPDATE NOW(),
+    created DATETIME DEFAULT NOW(),
     forum varchar(80) not null,
     message varchar(255),
     slug varchar(80) not null,
     title varchar(80) not null,
-    votes int unsigned default 0,
+    votes int default 0,
     unique(slug)
 );
 
@@ -42,7 +42,7 @@ create table posts
 (
     id int auto_increment primary key,
     author varchar(80) not null,
-    created DATETIME DEFAULT NOW() ON UPDATE NOW(),
+    created DATETIME DEFAULT NOW(),
     forum varchar(80) not null,
     isEdited bool DEFAULT false,
     message text not null,
@@ -55,7 +55,8 @@ create table votes
     id int auto_increment primary key,
     nickname varchar(80) not null,
     thread int not null,
-    vote int
+    vote int,
+    unique(nickname)
 );
 
 CREATE TRIGGER triggerPosts
@@ -81,5 +82,22 @@ CREATE TRIGGER triggerVote
     update threads t
     set t.votes = t.votes + new.vote
     where t.id = new.thread;
+
+CREATE TRIGGER triggerVoteUp
+    AFTER UPDATE
+    ON votes
+    for each row
+    update threads t
+    set t.votes = t.votes - old.vote + new.vote
+    where t.id = new.thread;
+
+
+CREATE TRIGGER triggerEdited
+    AFTER UPDATE
+    ON posts
+    for each row
+    update posts p
+    set p.isEdited = true
+    where p.id = new.id;
 
 
