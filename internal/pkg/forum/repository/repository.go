@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
 	"time"
 )
@@ -27,16 +26,12 @@ func (r *ForumRepository) Create(title string, user string, slug string) (*model
 	}
 	_, err := r.db.Exec("insert into forums(slug, title, user) value(?, ?, ?)", slug, title, u.Nickname)
 	if err != nil {
-		fmt.Println(err, "xsaxsaxsaxsaxsaxsa")
 		 err1 = r.db.QueryRow("select posts, slug, title, user, threads from forums where slug = ?", slug).
 			Scan(&forum.Posts, &forum.Slug, &forum.Title, &forum.User, &forum.Threads)
 		 return &forum, &models.Error{Message: "exist"}
 	}
 	err = r.db.QueryRow("select posts, slug, threads, title, user from forums where slug = ?", slug).
 		Scan(&forum.Posts, &forum.Slug, &forum.Threads, &forum.Title, &forum.User)
-	if err != nil {
-		fmt.Println(err)
-	}
 	return &forum, nil
 }
 
@@ -82,7 +77,7 @@ func (r *ForumRepository) FindUsers(slug string, since int, desc bool, limit int
 }
 
 func (r *ForumRepository) CreateThread(slug string, title string, author string, message string, created time.Time, slugThread string) (*models.Thread, *models.Error) {
-	fmt.Println(created)
+
 	forum := models.Forum{}
 	user := models.User{}
 	thread := models.Thread{}
@@ -105,7 +100,6 @@ func (r *ForumRepository) CreateThread(slug string, title string, author string,
 		r.db.QueryRow("select id, title, author, forum, message, votes, created, slug from threads where slug = ?", slugThread).
 			Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Created, &thread.Slug)
 		if err != nil {
-			fmt.Println(created)
 			return &thread, &models.Error{
 				Message: "error",
 			}
@@ -128,7 +122,6 @@ func (r *ForumRepository) ShowThreads(slug string, limit int, since string, desc
 	forum := models.Forum{}
 	thread := models.Thread{}
 	threads := models.Threads{}
-	fmt.Println(slug, limit, since, desc)
 	err := r.db.QueryRow("select slug from forums where slug = ?", slug).
 		Scan(&forum.Slug)
 	if err != nil {

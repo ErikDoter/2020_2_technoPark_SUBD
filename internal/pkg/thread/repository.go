@@ -13,7 +13,8 @@ type Repository interface {
 	Check(soi models.IdOrSlug) *models.Error
 	PostsFlat(soi models.IdOrSlug, limit int, since int, desc bool) models.Posts
 	PostsTree (soi models.IdOrSlug, limit int, since int, desc bool) models.Posts
-	RecursiveTree(query *sql.Rows, posts *models.Posts, limit int)
+	RecursiveTree(query *sql.Rows, posts *models.Posts, limit int, since int, desc bool)
 	PostsParentTree (soi models.IdOrSlug, limit int, since int, desc bool) models.Posts
 	RecursiveParentTree(query *sql.Rows, posts *models.Posts)
+	RecursiveTreeWithoutLimit(query *sql.Rows, posts *models.Posts, limit int, since int)
 }

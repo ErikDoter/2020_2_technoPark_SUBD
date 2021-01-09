@@ -82,7 +82,6 @@ func (r *UserRepository) Update(nickname string, fullname string, about string, 
 	if about != "" || email != "" || fullname != "" {
 		_, err = r.db.Exec(sql, nickname)
 		if err != nil {
-			fmt.Println(err)
 			return nil, &models.Error{Message: "conflict"}
 		}
 	}
