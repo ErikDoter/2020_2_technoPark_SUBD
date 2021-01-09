@@ -2,4 +2,4 @@ bind_addr = ":8000"
 log_level = "debug"
 
 [store]
-database_url = "root:password@/forum"
+database_url = "root:password@/forum?parseTime=true"

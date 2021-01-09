@@ -29,9 +29,9 @@ create table threads
 (
     id int auto_increment primary key,
     author varchar(80) not null,
-    created DATETIME DEFAULT NOW(),
+    created TIMESTAMP(3),
     forum varchar(80) not null,
-    message varchar(255),
+    message text not null,
     slug varchar(80) not null,
     title varchar(80) not null,
     votes int default 0,
@@ -42,7 +42,7 @@ create table posts
 (
     id int auto_increment primary key,
     author varchar(80) not null,
-    created DATETIME DEFAULT NOW(),
+    created TIMESTAMP(3),
     forum varchar(80) not null,
     isEdited bool DEFAULT false,
     message text not null,
@@ -91,13 +91,5 @@ CREATE TRIGGER triggerVoteUp
     set t.votes = t.votes - old.vote + new.vote
     where t.id = new.thread;
 
-
-CREATE TRIGGER triggerEdited
-    AFTER UPDATE
-    ON posts
-    for each row
-    update posts p
-    set p.isEdited = true
-    where p.id = new.id;
 
 

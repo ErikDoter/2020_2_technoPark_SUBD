@@ -115,3 +115,6 @@ order by p.id limit 1;
 
 insert into votes(nickname, thread, vote)
 value('ErikDoter', 1, -1);
+
+
+select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.slug = "S-r02m83ymsFR" and t.id = p.thread and p.parent = 0) where p.id > 0 order by p.id  limit 65;

@@ -22,6 +22,7 @@ func (uh *ThreadHandler) Find(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err1.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
 		w.Write(res)
 	} else {
@@ -30,6 +31,7 @@ func (uh *ThreadHandler) Find(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err1.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(result)
 	}
@@ -61,6 +63,7 @@ func (uh *ThreadHandler) CreatePosts (w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(409)
 			w.Write(result)
 		}
@@ -70,6 +73,7 @@ func (uh *ThreadHandler) CreatePosts (w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(201)
 		w.Write(res)
 	}
@@ -92,6 +96,7 @@ func (uh *ThreadHandler) Update(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
 		w.Write(result)
 	} else {
@@ -100,6 +105,7 @@ func (uh *ThreadHandler) Update(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(res)
 	}
@@ -122,6 +128,7 @@ func (uh *ThreadHandler) Vote(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
 		w.Write(result)
 	} else {
@@ -130,6 +137,37 @@ func (uh *ThreadHandler) Vote(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write(res)
+	}
+}
+
+
+func (uh *ThreadHandler) Posts(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	slug := vars["slug_or_id"]
+	limit := r.URL.Query().Get("limit")
+	desc := r.URL.Query().Get("desc")
+	since := r.URL.Query().Get("since")
+	sort := r.URL.Query().Get("sort")
+	p, err := uh.UseCase.Posts(slug, limit, since, sort, desc)
+	if err != nil {
+		res, err1 := json.Marshal(err)
+		if err1 != nil {
+			http.Error(w, err1.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		w.Write(res)
+	} else {
+		res, err1 := json.Marshal(p)
+		if err1 != nil {
+			http.Error(w, err1.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(res)
 	}

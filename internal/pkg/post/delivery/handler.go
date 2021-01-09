@@ -23,6 +23,7 @@ func (uh *PostHandler) Find(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err1.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
 		w.Write(res)
 	} else {
@@ -31,6 +32,7 @@ func (uh *PostHandler) Find(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err1.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(res)
 	}
@@ -53,6 +55,7 @@ func (uh *PostHandler) Update(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
 		w.Write(res)
 	} else {
@@ -61,6 +64,7 @@ func (uh *PostHandler) Update(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(res)
 	}

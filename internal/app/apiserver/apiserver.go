@@ -80,9 +80,9 @@ func (s *APIServer) InitHandler() (userHandler.UserHandler, forumHandler.ForumHa
 func (s *APIServer) configureRouter() {
 	user, forum, thread, post, service := s.InitHandler()
 	//User routes ...
-	s.router.HandleFunc("/api/user/{nickname:[A-z0-9](?:[-_\\.]?[A-z0-9])*}/profile", user.FindByNickname).Methods("GET")
-	s.router.HandleFunc("/api/user/{nickname:[A-z0-9](?:[-_\\.]?[A-z0-9])*}/profile", user.Update).Methods("POST")
-	s.router.HandleFunc("/api/user/{nickname:[A-z0-9](?:[-_\\.]?[A-z0-9])*}/create", user.Create)
+	s.router.HandleFunc("/api/user/{nickname}/profile", user.FindByNickname).Methods("GET")
+	s.router.HandleFunc("/api/user/{nickname}/profile", user.Update).Methods("POST")
+	s.router.HandleFunc("/api/user/{nickname}/create", user.Create)
 	//forum
 	s.router.HandleFunc("/api/forum/create", forum.Create).Methods("POST")
 	s.router.HandleFunc("/api/forum/{slug}/details", forum.Find)
@@ -94,6 +94,7 @@ func (s *APIServer) configureRouter() {
 	s.router.HandleFunc("/api/thread/{slug_or_id}/create", thread.CreatePosts).Methods("POST")
 	s.router.HandleFunc("/api/thread/{slug_or_id}/details", thread.Update).Methods("POST")
 	s.router.HandleFunc("/api/thread/{slug_or_id}/vote", thread.Vote).Methods("POST")
+	s.router.HandleFunc("/api/thread/{slug_or_id}/posts", thread.Posts).Methods("GET")
 
 	//post
 	s.router.HandleFunc("/api/post/{id}/details", post.Find).Methods("GET")

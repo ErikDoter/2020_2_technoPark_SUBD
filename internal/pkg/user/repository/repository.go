@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
 )
 
@@ -66,10 +67,30 @@ func (r *UserRepository) Update(nickname string, fullname string, about string, 
 			Message: "don't exist",
 		}
 	}
-	_, err = r.db.Exec("UPDATE users set about = ?, email = ?, fullname = ? where nickname = ?;", about, email, fullname, nickname)
-	if err != nil {
-		return nil, &models.Error{Message: "conflict"}
+	sql := "Update users set"
+	if about != "" {
+		sql += fmt.Sprintf(" about = \"%s\",", about)
 	}
+	if email != "" {
+		sql += fmt.Sprintf(" email = \"%s\",", email)
+	}
+	if fullname != "" {
+		sql += fmt.Sprintf(" fullname = \"%s\",", fullname)
+	}
+	sql = sql[:len(sql) - 1]
+	sql += " where nickname = ?"
+	if about != "" || email != "" || fullname != "" {
+		_, err = r.db.Exec(sql, nickname)
+		if err != nil {
+			fmt.Println(err)
+			return nil, &models.Error{Message: "conflict"}
+		}
+	}
+	err = r.db.QueryRow("select about, email, fullname, nickname from users where nickname = ?", nickname).
+		Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
+	if err != nil {
+			return nil, &models.Error{Message: "conflict"}
+		}
 
 	return &user, nil
 }

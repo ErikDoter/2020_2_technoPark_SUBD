@@ -1,10 +1,12 @@
 package models
 
+import "time"
+
 type Post struct {
 	Author string `json:"author"`
-	Created string `json:"created"`
+	Created time.Time `json:"created"`
 	Forum string `json:"forum"`
-	Id string `json:"id"`
+	Id int `json:"id"`
 	IsEdited bool `json:"isEdited"`
 	Message string `json:"message"`
 	Parent int64 `json:"parent"`

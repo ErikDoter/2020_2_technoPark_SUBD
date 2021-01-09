@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/forum"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
 	"github.com/gorilla/mux"
@@ -29,6 +30,7 @@ func (uh *ForumHandler) Create(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(409)
 			w.Write(res)
 		} else {
@@ -37,6 +39,7 @@ func (uh *ForumHandler) Create(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(404)
 			w.Write(res)
 		}
@@ -46,8 +49,10 @@ func (uh *ForumHandler) Create(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(201)
 		w.Write(res)
+		fmt.Println("asdsadsadsadsadsadasdsa")
 	}
 }
 
@@ -61,6 +66,7 @@ func (uh *ForumHandler) Find(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err1.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
 		w.Write(res)
 	} else {
@@ -69,6 +75,7 @@ func (uh *ForumHandler) Find(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err1.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(result)
 	}
@@ -104,6 +111,7 @@ func (uh *ForumHandler) FindUsers(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err1.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
 		w.Write(res)
 	} else {
@@ -112,6 +120,7 @@ func (uh *ForumHandler) FindUsers(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err1.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(result)
 	}
@@ -136,6 +145,7 @@ func (uh *ForumHandler) CreateThread(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(404)
 			w.Write(res)
 		} else {
@@ -144,15 +154,18 @@ func (uh *ForumHandler) CreateThread(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(409)
 			w.Write(res)
 		}
 	} else {
+		thread.Slug = t.Slug
 		res, err := json.Marshal(thread)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(201)
 		w.Write(res)
 	}
@@ -171,6 +184,7 @@ func (uh *ForumHandler) ShowThreads(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err1.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
 		w.Write(res)
 	} else {
@@ -179,6 +193,7 @@ func (uh *ForumHandler) ShowThreads(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err1.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write(res)
 	}

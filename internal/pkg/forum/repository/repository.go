@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
+	"time"
 )
 
 type ForumRepository struct {
@@ -18,26 +19,25 @@ func NewForumRepository(db *sql.DB) *ForumRepository {
 
 func (r *ForumRepository) Create(title string, user string, slug string) (*models.Forum, *models.Error) {
 	forum := models.Forum{}
-	query, _ := r.db.Query("select about, email, fullname, nickname from users where nickname = ?", user)
-	defer query.Close()
-	if !query.Next() {
-		return nil, &models.Error{
-			Message: "can't find user with this nickname",
-		}
+	u := models.User{}
+	err1 := r.db.QueryRow("select nickname from users where nickname = ?", user).
+		Scan(&u.Nickname)
+	if err1 != nil {
+		return nil, &models.Error{Message: "can't find user with this nickname"}
 	}
-	_, err := r.db.Exec("insert into forums(slug, title, user) value(?, ?, ?)", slug, title, user)
+	_, err := r.db.Exec("insert into forums(slug, title, user) value(?, ?, ?)", slug, title, u.Nickname)
 	if err != nil {
-		 r.db.QueryRow("select posts, slug, title, user, threads from forums where slug = ?", slug).
+		fmt.Println(err, "xsaxsaxsaxsaxsaxsa")
+		 err1 = r.db.QueryRow("select posts, slug, title, user, threads from forums where slug = ?", slug).
 			Scan(&forum.Posts, &forum.Slug, &forum.Title, &forum.User, &forum.Threads)
 		 return &forum, &models.Error{Message: "exist"}
 	}
-	return &models.Forum{
-		Posts:   0,
-		Slug:    slug,
-		Threads: 0,
-		Title:   title,
-		User:    user,
-	}, nil
+	err = r.db.QueryRow("select posts, slug, threads, title, user from forums where slug = ?", slug).
+		Scan(&forum.Posts, &forum.Slug, &forum.Threads, &forum.Title, &forum.User)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return &forum, nil
 }
 
 func (r *ForumRepository) Find(slug string) (*models.Forum, *models.Error) {
@@ -81,7 +81,8 @@ func (r *ForumRepository) FindUsers(slug string, since int, desc bool, limit int
 	return &users, nil
 }
 
-func (r *ForumRepository) CreateThread(slug string, title string, author string, message string, created string, slugThread string) (*models.Thread, *models.Error) {
+func (r *ForumRepository) CreateThread(slug string, title string, author string, message string, created time.Time, slugThread string) (*models.Thread, *models.Error) {
+	fmt.Println(created)
 	forum := models.Forum{}
 	user := models.User{}
 	thread := models.Thread{}
@@ -93,24 +94,37 @@ func (r *ForumRepository) CreateThread(slug string, title string, author string,
 		}
 	}
 	err = r.db.QueryRow("select nickname from users where nickname = ?", author).Scan(&user.Nickname)
-	fmt.Println(user.Nickname)
 	if err != nil {
 		return nil, &models.Error{
 			Message: "can't find",
 		}
 	}
-	_, err = r.db.Exec("insert into threads(author, message, title, forum, slug) value(?, ?, ?, ?, ?);", author, message, title, slug, slugThread)
-	r.db.QueryRow("select id, title, author, forum, message, votes, slug, created from threads where slug = ?", slugThread).
-		Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Slug, &thread.Created)
-	if err != nil {
-		return &thread, &models.Error{
-			Message: "error",
+	date := time.Time{}
+	if created != date {
+		_, err = r.db.Exec("insert into threads(author, message, title, forum, slug, created) value(?, ?, ?, ?, ?, ?);", author, message, title, slug, slugThread, created)
+		r.db.QueryRow("select id, title, author, forum, message, votes, created, slug from threads where slug = ?", slugThread).
+			Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Created, &thread.Slug)
+		if err != nil {
+			fmt.Println(created)
+			return &thread, &models.Error{
+				Message: "error",
+			}
 		}
+		return &thread, nil
+	} else {
+		_, err = r.db.Exec("insert into threads(author, message, title, forum, slug) value(?, ?, ?, ?, ?);", author, message, title, slug, slugThread)
+		r.db.QueryRow("select id, title, author, forum, message, votes, slug from threads where slug = ?", slugThread).
+			Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Slug)
+		if err != nil {
+			return &thread, &models.Error{
+				Message: "error",
+			}
+		}
+		return &thread, nil
 	}
-	return &thread, nil
 }
 
-func (r *ForumRepository) ShowThreads(slug string, limit int, since int, desc bool) (*models.Threads, *models.Error) {
+func (r *ForumRepository) ShowThreads(slug string, limit int, since string, desc bool) (*models.Threads, *models.Error) {
 	forum := models.Forum{}
 	thread := models.Thread{}
 	threads := models.Threads{}
@@ -124,9 +138,17 @@ func (r *ForumRepository) ShowThreads(slug string, limit int, since int, desc bo
 	}
 	var query *sql.Rows
 	if desc {
-		query, _ = r.db.Query("select id, title, author, forum, message, votes, slug, created from threads where forum = ?  and UNIX_TIMESTAMP(created) >= ? order by created DESC LIMIT ?", slug, since, limit)
+		if since == "" {
+			query, _ = r.db.Query("select id, title, author, forum, message, votes, slug, created from threads where forum = ? order by created DESC LIMIT ?", slug, limit)
+		} else {
+			query, _ = r.db.Query("select id, title, author, forum, message, votes, slug, created from threads where forum = ?  and created <= ? order by created DESC LIMIT ?", slug, since, limit)
+		}
 	} else {
-		query, _ = r.db.Query("select id, title, author, forum, message, votes, slug, created from threads where forum = ? and UNIX_TIMESTAMP(created) >= ? order by created LIMIT ?", slug, since, limit)
+		if since == "" {
+			query, _ = r.db.Query("select id, title, author, forum, message, votes, slug, created from threads where forum = ? order by created LIMIT ?", slug, limit)
+		} else {
+			query, _ = r.db.Query("select id, title, author, forum, message, votes, slug, created from threads where forum = ? and created >= ? order by created LIMIT ?", slug, since, limit)
+		}
 	}
 	for query.Next(){
 		query.Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Slug, &thread.Created)

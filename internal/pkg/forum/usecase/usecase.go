@@ -5,6 +5,7 @@ import (
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
 	uuid2 "github.com/satori/go.uuid"
 	"strconv"
+	"time"
 )
 
 type ForumUseCase struct {
@@ -38,7 +39,12 @@ func (u *ForumUseCase) FindUsers(slug string, since int, desc bool, limit int) (
 	return users, nil
 }
 
-func (u *ForumUseCase) CreateThread(slug string, title string, author string, message string, created string, slugThread string) (*models.Thread, *models.Error) {
+func (u *ForumUseCase) CreateThread(slug string, title string, author string, message string, created time.Time, slugThread string) (*models.Thread, *models.Error) {
+	forum, err := u.ForumRepository.Find(slug)
+	if err != nil {
+		return nil, &models.Error{Message: "can't find"}
+	}
+	slug = forum.Slug
 	if slugThread == "" {
 		slugThread = uuid2.NewV4().String()
 	}
@@ -47,7 +53,7 @@ func (u *ForumUseCase) CreateThread(slug string, title string, author string, me
 }
 
 func (u *ForumUseCase) ShowThreads(slug string, limit string, since string, desc string) (*models.Threads, *models.Error) {
-	var l, s int
+	var l int
 	var d bool
 	if limit == "" {
 		l = 100
@@ -59,12 +65,7 @@ func (u *ForumUseCase) ShowThreads(slug string, limit string, since string, desc
 	} else {
 		d = true
 	}
-	if since == "" {
-		s = 0
-	} else {
-		s, _ = strconv.Atoi(since)
-	}
-	threads, err := u.ForumRepository.ShowThreads(slug, l, s, d)
+	threads, err := u.ForumRepository.ShowThreads(slug, l, since, d)
 	if err != nil {
 		return nil, err
 	}
