@@ -31,7 +31,10 @@ func (u *ForumUseCase) Find(slug string) (*models.Forum, *models.Error) {
 	return forum, nil
 }
 
-func (u *ForumUseCase) FindUsers(slug string, since int, desc bool, limit int) (*models.Users, *models.Error) {
+func (u *ForumUseCase) FindUsers(slug string, since string, desc bool, limit int) (*models.Users, *models.Error) {
+	if since == "" {
+		since = "."
+	}
 	users, err := u.ForumRepository.FindUsers(slug, since, desc, limit)
 	if err != nil {
 		return nil, err

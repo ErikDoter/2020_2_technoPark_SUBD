@@ -55,6 +55,7 @@ func (uh *ThreadHandler) CreatePosts (w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(404)
 			w.Write(result)
 		} else {

@@ -2,7 +2,6 @@ package delivery
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/forum"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
 	"github.com/gorilla/mux"
@@ -52,7 +51,6 @@ func (uh *ForumHandler) Create(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(201)
 		w.Write(res)
-		fmt.Println("asdsadsadsadsadsadasdsa")
 	}
 }
 
@@ -84,7 +82,7 @@ func (uh *ForumHandler) Find(w http.ResponseWriter, r *http.Request) {
 func (uh *ForumHandler) FindUsers(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slug := vars["slug"]
-	var limit, since int
+	var limit int
 	var desc bool
 	l := r.URL.Query().Get("limit")
 	d := r.URL.Query().Get("desc")
@@ -99,12 +97,7 @@ func (uh *ForumHandler) FindUsers(w http.ResponseWriter, r *http.Request) {
 	} else {
 		desc = true
 	}
-	if s == "" {
-		since = -1
-	} else {
-		since, _ = strconv.Atoi(s)
-	}
-	users, err := uh.UseCase.FindUsers(slug, since, desc, limit)
+	users, err := uh.UseCase.FindUsers(slug, s, desc, limit)
 	if err != nil {
 		res, err1 := json.Marshal(err)
 		if err1 != nil {

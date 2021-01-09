@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
 )
 
@@ -39,7 +38,6 @@ func (r *PostRepository) DetailsThread(id int) models.Thread {
 	err := r.db.QueryRow("select t.author, t.slug, t.created, t.forum, t.id, t.message, t.title, t.votes from posts p join threads t on (p.id = ? and p.thread = t.id)", id).
 		Scan(&thread.Author, &thread.Slug, &thread.Created, &thread.Forum, &thread.Id, &thread.Message, &thread.Title, &thread.Votes)
 	if err != nil {
-		fmt.Println(err)
 	}
 	return thread
 }
@@ -53,20 +51,27 @@ func (r *PostRepository) DetailsForum(id int) models.Forum {
 
 func (r *PostRepository) DetailsPost(id int) models.Post {
 	post := models.Post{}
-	r.db.QueryRow("select author, created, forum, id, message, isEdited, parent, thread from posts where id = ?", id).
-		Scan(&post.Author, &post.Created, &post.Forum, &post.Id, &post.Message, &post.IsEdited, &post.Parent, &post.Thread)
+	err := r.db.QueryRow("select author, forum, id, message, isEdited, parent, thread, created from posts where id = ?", id).
+		Scan(&post.Author, &post.Forum, &post.Id, &post.Message, &post.IsEdited, &post.Parent, &post.Thread, &post.Created)
+	if err != nil {
+	}
 	return post
 }
 
 func (r *PostRepository) Update(id int, message string) models.Post {
 	isEdited := true
-	_, err := r.db.Exec("update posts set message = ?, isEdited = ? where id = ?", message, isEdited, id)
-	if err != nil {
-		fmt.Println(err)
-	}
+	var err error
+	var mes string
 	post := models.Post{}
-	r.db.QueryRow("select author, created, forum, id, message, isEdited, parent, thread from posts where id = ?", id).
-		Scan(&post.Author, &post.Created, &post.Forum, &post.Id, &post.Message, &post.IsEdited, &post.Parent, &post.Thread)
+	err = r.db.QueryRow("select message from posts where id = ?", id).
+		Scan(&mes)
+	if message != "" && mes != message {
+		_, err = r.db.Exec("update posts set message = ?, isEdited = ? where id = ?", message, isEdited, id)
+	}
+	err = r.db.QueryRow("select author, forum, id, message, isEdited, parent, thread, created from posts where id = ?", id).
+		Scan(&post.Author, &post.Forum, &post.Id, &post.Message, &post.IsEdited, &post.Parent, &post.Thread, &post.Created)
+	if err != nil {
+	}
 	return post
 }
 

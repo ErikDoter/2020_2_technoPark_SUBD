@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
 )
 
@@ -30,13 +29,9 @@ func (r *ServiceRepository) Status() *models.Status {
 }
 
 func (r *ServiceRepository) Clear(){
-	_, err := r.db.Exec("truncate table posts")
-	_, err = r.db.Exec("truncate table users")
-	_, err = r.db.Exec("truncate table forums")
-	_, err = r.db.Exec("truncate table threads")
-	_, err = r.db.Exec("truncate table votes")
-	if err != nil {
-		fmt.Println(err)
-	}
-
+	r.db.Exec("truncate table posts")
+	r.db.Exec("truncate table users")
+	r.db.Exec("truncate table forums")
+	r.db.Exec("truncate table threads")
+	r.db.Exec("truncate table votes")
 }

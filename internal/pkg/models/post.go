@@ -14,10 +14,10 @@ type Post struct {
 }
 
 type PostFull struct {
-	Author User `json:"author"`
-	Forum Forum `json:"forum"`
-	Post Post `json:"post"`
-	Thread Thread `json:"thread"`
+	Author *User `json:"author,omitempty"`
+	Forum *Forum `json:"forum,omitempty"`
+	Post *Post `json:"post"`
+	Thread *Thread `json:"thread,omitempty"`
 }
 
 type PostMini struct {

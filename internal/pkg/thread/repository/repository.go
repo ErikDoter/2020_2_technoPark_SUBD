@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
 )
 
@@ -50,6 +49,11 @@ func (r *ThreadRepository) CreatePosts(soi models.IdOrSlug, posts models.PostsMi
 		return nil, &models.Error{Message: "can't find thread"}
 	}
 	for _, value := range posts {
+		var i int
+		err = r.db.QueryRow("select id from users where nickname = ?", value.Author).Scan(&i)
+		if err != nil {
+			return nil, &models.Error{Message: "can't find thread"}
+		}
 		if value.Parent != 0 {
 			err = r.db.QueryRow("select thread from posts where id = ?", value.Parent).
 				Scan(&post.Thread)
@@ -82,7 +86,12 @@ func (r *ThreadRepository) Update(soi models.IdOrSlug, title string, message str
 	if err != nil {
 		return nil, &models.Error{Message: "can't find thread"}
 	}
-	_, err = r.db.Exec("update threads set message = ?, title = ? where id = ?;", message, title, thread.Id)
+	if title != "" {
+		_, err = r.db.Exec("update threads set  title = ? where id = ?;", title, thread.Id)
+	}
+	if message != "" {
+		_, err = r.db.Exec("update threads set  message = ? where id = ?;", message, thread.Id)
+	}
 	id := thread.Id
 	err = r.db.QueryRow("select id, title, author, forum, message, votes, slug, created from threads where id = ?", id).
 		Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Slug, &thread.Created)
@@ -92,12 +101,17 @@ func (r *ThreadRepository) Update(soi models.IdOrSlug, title string, message str
 func (r *ThreadRepository) Vote(soi models.IdOrSlug, nickname string, voice int ) (*models.Thread, *models.Error) {
 	thread := models.Thread{}
 	var err error
+	var i int
 	if soi.IsSlug {
 		err = r.db.QueryRow("select id from threads where slug = ?", soi.Slug).
 			Scan(&thread.Id)
 	} else {
 		err = r.db.QueryRow("select id from threads where id = ?", soi.Id).
 			Scan(&thread.Id)
+	}
+	err2 := r.db.QueryRow("select id from users where nickname = ?", nickname).Scan(&i)
+	if err2 != nil {
+		return nil, &models.Error{Message: "can't find thread"}
 	}
 	if err != nil {
 		return nil, &models.Error{Message: "can't find thread"}

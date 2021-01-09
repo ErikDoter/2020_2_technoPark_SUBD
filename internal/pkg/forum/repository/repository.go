@@ -47,7 +47,7 @@ func (r *ForumRepository) Find(slug string) (*models.Forum, *models.Error) {
 	return &forum, nil
 }
 
-func (r *ForumRepository) FindUsers(slug string, since int, desc bool, limit int) (*models.Users, *models.Error) {
+func (r *ForumRepository) FindUsers(slug string, since string, desc bool, limit int) (*models.Users, *models.Error) {
 	var query *sql.Rows
 	var err error
 	forum := models.Forum{}
@@ -61,9 +61,17 @@ func (r *ForumRepository) FindUsers(slug string, since int, desc bool, limit int
 	user := models.User{}
 	users := models.Users{}
 	if desc {
-		query, err = r.db.Query("select T.about, T.email, T.fullname, T.nickname from (        SELECT u.about, u.email, u.fullname, u.nickname, u.id        from forums f join threads t on f.slug = t.forum        join users u on t.author = u.nickname        where f.slug = ?        union        SELECT uu.about, uu.email, uu.fullname, uu.nickname, uu.id        from forums ff join threads tt on ff.slug = tt.forum        join posts pp on pp.thread = tt.id        join users uu on uu.nickname = pp.author        where ff.slug = ?    ) as T where T.id > ? ORDER BY lower(T.nickname) DESC LIMIT ?", slug, slug, since, limit)
+		if since == "." {
+			query, err = r.db.Query("select T.about, T.email, T.fullname, T.nickname from (        SELECT u.about, u.email, u.fullname, u.nickname, u.id        from forums f join threads t on f.slug = t.forum        join users u on t.author = u.nickname        where f.slug = ?        union        SELECT uu.about, uu.email, uu.fullname, uu.nickname, uu.id        from forums ff join threads tt on ff.slug = tt.forum        join posts pp on pp.thread = tt.id        join users uu on uu.nickname = pp.author        where ff.slug = ?    ) as T ORDER BY BINARY lower(T.nickname) DESC LIMIT ?", slug, slug, limit)
+		} else {
+			query, err = r.db.Query("select T.about, T.email, T.fullname, T.nickname from (        SELECT u.about, u.email, u.fullname, u.nickname, u.id        from forums f join threads t on f.slug = t.forum        join users u on t.author = u.nickname        where f.slug = ?        union        SELECT uu.about, uu.email, uu.fullname, uu.nickname, uu.id        from forums ff join threads tt on ff.slug = tt.forum        join posts pp on pp.thread = tt.id        join users uu on uu.nickname = pp.author        where ff.slug = ?    ) as T where  binary lower(T.nickname) <  binary lower(?) ORDER BY BINARY lower(T.nickname) DESC LIMIT ?", slug, slug, since, limit)
+		}
 	} else {
-		query, err = r.db.Query("select T.about, T.email, T.fullname, T.nickname from (        SELECT u.about, u.email, u.fullname, u.nickname, u.id        from forums f join threads t on f.slug = t.forum        join users u on t.author = u.nickname        where f.slug = ?        union        SELECT uu.about, uu.email, uu.fullname, uu.nickname, uu.id        from forums ff join threads tt on ff.slug = tt.forum        join posts pp on pp.thread = tt.id        join users uu on uu.nickname = pp.author        where ff.slug = ?    ) as T where T.id > ? ORDER BY lower(T.nickname) LIMIT ?", slug, slug, since, limit)
+		if since == "." {
+			query, err = r.db.Query("select T.about, T.email, T.fullname, T.nickname from (        SELECT u.about, u.email, u.fullname, u.nickname, u.id        from forums f join threads t on f.slug = t.forum        join users u on t.author = u.nickname        where f.slug = ?        union        SELECT uu.about, uu.email, uu.fullname, uu.nickname, uu.id        from forums ff join threads tt on ff.slug = tt.forum        join posts pp on pp.thread = tt.id        join users uu on uu.nickname = pp.author        where ff.slug = ?    ) as T ORDER BY BINARY lower(T.nickname) LIMIT ?", slug, slug,  limit)
+		} else {
+			query, err = r.db.Query("select T.about, T.email, T.fullname, T.nickname from (        SELECT u.about, u.email, u.fullname, u.nickname, u.id        from forums f join threads t on f.slug = t.forum        join users u on t.author = u.nickname        where f.slug = ?        union        SELECT uu.about, uu.email, uu.fullname, uu.nickname, uu.id        from forums ff join threads tt on ff.slug = tt.forum        join posts pp on pp.thread = tt.id        join users uu on uu.nickname = pp.author        where ff.slug = ?    ) as T where   binary lower(T.nickname) >  binary lower(?) ORDER BY BINARY lower(T.nickname) LIMIT ?", slug, slug, since, limit)
+		}
 	}
 	if err != nil {
 		return nil, &models.Error{Message: "can't find forum with this slug"}

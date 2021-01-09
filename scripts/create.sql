@@ -1,6 +1,3 @@
-drop database forum;
-create database forum;
-
 use forum
 
 create table users
