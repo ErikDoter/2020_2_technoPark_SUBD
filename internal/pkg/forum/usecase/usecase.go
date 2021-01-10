@@ -3,7 +3,6 @@ package usecase
 import (
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/forum"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
-	uuid2 "github.com/satori/go.uuid"
 	"strconv"
 	"time"
 )
@@ -48,9 +47,6 @@ func (u *ForumUseCase) CreateThread(slug string, title string, author string, me
 		return nil, &models.Error{Message: "can't find"}
 	}
 	slug = forum.Slug
-	if slugThread == "" {
-		slugThread = uuid2.NewV4().String()
-	}
 	thread, err := u.ForumRepository.CreateThread(slug, title, author, message, created, slugThread)
 	return thread, err
 }

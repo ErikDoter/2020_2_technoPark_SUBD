@@ -29,7 +29,7 @@ create table threads
     created TIMESTAMP(3) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
     forum CITEXT not null,
     message text not null,
-    slug CITEXT UNIQUE not null,
+    slug CITEXT,
     title text not null,
     votes int default 0
 );
@@ -50,11 +50,14 @@ create UNLOGGED table posts
     isEdited bool DEFAULT false not null,
     message text not null,
     parent int not null,
-    thread int not null
+    thread int not null,
+    path       INTEGER ARRAY               DEFAULT '{}'              NOT NULL
 );
 
 CREATE UNIQUE INDEX ON posts(id, thread);
 CREATE UNIQUE INDEX ON posts(id, author);
+CREATE INDEX ON posts(thread, path DESC);
+CREATE INDEX ON posts(thread, path ASC);
 CREATE INDEX ON posts(thread, id DESC);
 CREATE INDEX ON posts(thread, id ASC);
 
@@ -65,6 +68,34 @@ create table votes
     vote int,
     PRIMARY KEY (thread, nickname)
 );
+CREATE UNIQUE INDEX ON votes(thread, nickname);
+
+
+CREATE FUNCTION update_path_check_parent() RETURNS TRIGGER AS
+    $$
+DECLARE
+temp INT ARRAY;
+BEGIN
+    IF new.parent ISNULL OR new.parent = 0 THEN
+        new.path = ARRAY [new.id];
+ELSE
+
+SELECT path
+INTO temp
+FROM posts
+WHERE id = new.parent;
+new.path = array_append(temp, new.id);
+
+END IF;
+RETURN new;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_posts_path
+    BEFORE INSERT
+    ON posts
+    FOR EACH ROW
+    EXECUTE PROCEDURE update_path_check_parent();
 
 CREATE FUNCTION  trigger_posts() RETURNS TRIGGER AS
     $$

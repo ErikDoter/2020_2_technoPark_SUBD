@@ -91,7 +91,18 @@ func (r *ForumRepository) CreateThread(slug string, title string, author string,
 	forum := models.Forum{}
 	user := models.User{}
 	thread := models.Thread{}
-	err := r.db.QueryRow("select slug from forums where slug = $1", slug).
+	var err error
+	var i int
+	if slugThread != "" {
+		err = r.db.QueryRow("select id, title, author, forum, message, votes, created, slug from threads where slug = $1", slugThread).
+			Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Created, &thread.Slug)
+		if err == nil {
+			return &thread, &models.Error{
+				Message: "error",
+			}
+		}
+	}
+	err = r.db.QueryRow("select slug from forums where slug = $1", slug).
 		Scan(&forum.Slug)
 	if err != nil {
 		return nil, &models.Error{
@@ -106,8 +117,9 @@ func (r *ForumRepository) CreateThread(slug string, title string, author string,
 	}
 	date := time.Time{}
 	if created != date {
-		_, err = r.db.Exec("insert into threads(author, message, title, forum, slug, created) values($1, $2, $3, $4, $5, $6);", author, message, title, slug, slugThread, created)
-		r.db.QueryRow("select id, title, author, forum, message, votes, created, slug from threads where slug = $1", slugThread).
+		err = r.db.QueryRow("insert into threads(author, message, title, forum, slug, created) values($1, $2, $3, $4, $5, $6) returning id;", author, message, title, slug, slugThread, created).
+			Scan(&i)
+		r.db.QueryRow("select id, title, author, forum, message, votes, created, slug from threads where id = $1", i).
 			Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Created, &thread.Slug)
 		if err != nil {
 			return &thread, &models.Error{
@@ -116,8 +128,9 @@ func (r *ForumRepository) CreateThread(slug string, title string, author string,
 		}
 		return &thread, nil
 	} else {
-		_, err = r.db.Exec("insert into threads(author, message, title, forum, slug) values($1, $2, $3, $4, $5);", author, message, title, slug, slugThread)
-		r.db.QueryRow("select id, title, author, forum, message, votes, slug from threads where slug = $1", slugThread).
+		err = r.db.QueryRow("insert into threads(author, message, title, forum, slug) values($1, $2, $3, $4, $5) returning id;", author, message, title, slug, slugThread).
+			Scan(&i)
+		r.db.QueryRow("select id, title, author, forum, message, votes, slug from threads where id = $1", i).
 			Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Slug)
 		if err != nil {
 			return &thread, &models.Error{

@@ -55,7 +55,6 @@ func (r *ThreadRepository) CreatePosts(soi models.IdOrSlug, posts models.PostsMi
 	err2 := r.db.QueryRow("select forum from threads where id = $1", thread.Id).
 		Scan(&forum)
 	if err2 != nil {
-		fmt.Println(err)
 	}
 	for _, value := range posts {
 		if value.Parent != 0 {
@@ -71,7 +70,6 @@ func (r *ThreadRepository) CreatePosts(soi models.IdOrSlug, posts models.PostsMi
 		err = r.db.QueryRow("insert into posts(author, message, parent, thread, created, forum) values($1, $2, $3, $4, $5, $6) RETURNING id, parent, author, message, isEdited,  forum, thread, created", value.Author, value.Message, value.Parent, thread.Id, now, forum).
 			Scan(&post.Id, &post.Parent, &post.Author, &post.Message, &post.IsEdited, &post.Forum, &post.Thread, &post.Created)
 		if err != nil {
-			fmt.Println(err)
 			return nil, &models.Error{Message: "can't find thread"}
 		}
 		postsAnswer = append(postsAnswer, post)
@@ -149,222 +147,117 @@ func (r *ThreadRepository) Check(soi models.IdOrSlug) *models.Error {
 	return nil
 }
 
-func (r *ThreadRepository) PostsFlat(soi models.IdOrSlug, limit int, since int, desc bool) models.Posts {
-	var query *pgx.Rows
-	post := models.Post{}
-	posts := models.Posts{}
+func (r *ThreadRepository) CheckId(soi models.IdOrSlug) (int32, *models.Error) {
+	var id int32
+	var err error
 	if soi.IsSlug {
-		if desc {
-			query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.slug = $1 and t.id = p.thread) where p.id < $2 order by p.id desc limit $3", soi.Slug, since, limit)
-		} else {
-			query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.slug = $1 and t.id = p.thread) where p.id > $2 order by p.id  limit $3", soi.Slug, since, limit)
-		}
+		err = r.db.QueryRow("select id from threads where slug = $1", soi.Slug).
+			Scan(&id)
 	} else {
-		if desc {
-			query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.id = $1 and t.id = p.thread) where p.id < $2 order by p.id desc limit $3", soi.Id, since, limit)
-		} else {
-			query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.id = $1 and t.id = p.thread) where p.id > $2 order by p.id  limit $3", soi.Id, since, limit)
-		}
+		err = r.db.QueryRow("select id from threads where id = $1", soi.Id).
+			Scan(&id)
 	}
-	for query.Next(){
-		err := query.Scan(&post.Author, &post.Forum, &post.Id, &post.IsEdited, &post.Message, &post.Parent, &post.Thread, &post.Created)
+	if err != nil {
+		return 0, &models.Error{Message: "can't find"}
+	}
+	return id, nil
+}
+
+
+func (r *ThreadRepository) GetThreadPosts(threadID int32, desc bool, since string, limit int, sort string) (ps *models.Posts, err1 *models.Error) {
+	posts := models.Posts{}
+	query := ""
+
+	var err error
+	rows := &pgx.Rows{}
+	if since != "" {
+		switch sort {
+		case "tree":
+			query = "SELECT posts.id, posts.author, posts.forum, posts.thread, " +
+				"posts.message, posts.parent, posts.isEdited, posts.created " +
+				"FROM posts %s posts.thread = $1 ORDER BY posts.path[1] %s, posts.path %s LIMIT $3"
+			if desc {
+				query = fmt.Sprintf(query, "JOIN posts P ON P.id = $2 WHERE posts.path < p.path AND",
+					"DESC",
+					"DESC")
+			} else {
+				query = fmt.Sprintf(query, "JOIN posts P ON P.id = $2 WHERE posts.path > p.path AND",
+					"ASC",
+					"ASC")
+			}
+		case "parent_tree":
+			query =  "SELECT p.id, p.author, p.forum, p.thread, p.message, p.parent, p.isEdited, p.created " +
+				"FROM posts as p WHERE p.thread = $1 AND " +
+				"p.path::integer[] && (SELECT ARRAY (select p.id from posts as p WHERE p.thread = $1 AND p.parent = 0 %s %s %s"
+			if desc {
+				query = fmt.Sprintf(query, " AND p.path < (SELECT p.path[1:1] FROM posts as p WHERE p.id = $2) ",
+					"ORDER BY p.path[1] DESC, p.path LIMIT $3)) ",
+					"ORDER BY p.path[1] DESC, p.path ")
+			} else {
+				query = fmt.Sprintf(query, " AND p.path > (SELECT p.path[1:1] FROM posts as p WHERE p.id = $2) ",
+					"ORDER BY p.path[1] ASC, p.path LIMIT $3)) ",
+					"ORDER BY p.path[1] ASC, p.path ")
+			}
+		default:
+			query = "SELECT id, author, forum, thread, message, parent, isEdited, created " +
+				"FROM posts WHERE thread = $1 AND id %s $2 ORDER BY id %s LIMIT $3"
+			if desc {
+				query = fmt.Sprintf(query, "<", "DESC")
+			} else {
+				query = fmt.Sprintf(query, ">", "ASC")
+			}
+		}
+		rows, err = r.db.Query(query, threadID, since, limit)
+	} else {
+		switch sort {
+		case "tree":
+			if desc {
+				query = fmt.Sprintf("SELECT posts.id, posts.author, posts.forum, posts.thread, " +
+					"posts.message, posts.parent, posts.isEdited, posts.created " +
+					"FROM posts WHERE posts.thread = $1 ORDER BY posts.path[1] DESC, posts.path DESC LIMIT $2")
+			} else {
+				query = fmt.Sprintf("SELECT posts.id, posts.author, posts.forum, posts.thread, " +
+					"posts.message, posts.parent, posts.isEdited, posts.created " +
+					"FROM posts WHERE posts.thread = $1 ORDER BY posts.path[1] ASC, posts.path ASC LIMIT $2")
+			}
+		case "parent_tree":
+			if desc {
+				query = "SELECT p.id, p.author, p.forum, p.thread, p.message, p.parent, p.isEdited, p.created " +
+					"FROM posts as p WHERE p.thread = $1 AND " +
+					"p.path::integer[] && (SELECT ARRAY (select p.id from posts as p WHERE p.thread = $1 AND p.parent = 0" +
+					"ORDER BY p.path[1] DESC, p.path LIMIT $2)) " +
+					"ORDER BY p.path[1] DESC, p.path"
+			} else {
+				query ="SELECT p.id, p.author, p.forum, p.thread, p.message, p.parent, p.isEdited, p.created " +
+					"FROM posts as p WHERE p.thread = $1 AND " +
+					"p.path::integer[] && (SELECT ARRAY (select p.id from posts as p WHERE p.thread = $1 AND p.parent = 0 " +
+					"ORDER BY p.path[1] ASC, p.path LIMIT $2)) ORDER BY p.path[1] ASC, p.path"
+			}
+		default:
+			if desc {
+				query = "SELECT id, author, forum, thread, message, parent, isEdited, created " +
+					"FROM posts WHERE thread = $1  ORDER BY id DESC LIMIT $2"
+			} else {
+				query = "SELECT id, author, forum, thread, message, parent, isEdited, created " +
+					"FROM posts WHERE thread = $1 ORDER BY id ASC LIMIT $2"
+			}
+		}
+		rows, err = r.db.Query(query, threadID, limit)
+	}
+
+	if err != nil {
+		return &posts, &models.Error{Message: err.Error()}
+	}
+
+	for rows.Next() {
+		p := &models.Post{}
+		err := rows.Scan(&p.Id, &p.Author, &p.Forum, &p.Thread, &p.Message, &p.Parent, &p.IsEdited, &p.Created)
 		if err != nil {
+			return &posts, &models.Error{Message: err.Error()}
 		}
-		posts = append(posts, post)
+		posts = append(posts, *p)
 	}
-	defer query.Close()
-	return posts
+	return &posts, nil
 }
 
-func (r *ThreadRepository) PostsParentTree (soi models.IdOrSlug, limit int, since int, desc bool) models.Posts {
-	posts := models.Posts{}
-	var query *pgx.Rows
-	if soi.IsSlug {
-		if desc {
-			if since == 0 || since == 100000000 {
-				query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.slug = $1 and t.id = p.thread and p.parent = 0) where p.id < $2 order by p.id desc limit $3", soi.Slug, since, limit)
-			} else {
-				query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.slug = $1 and t.id = p.thread and p.parent = 0) where p.id < $2 order by p.id desc", soi.Slug, since)
-			}
-			r.RecursiveParentTree(query, &posts)
-			defer query.Close()
-		} else {
-			if since == 0 || since == 100000000 {
-				query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.slug = $1 and t.id = p.thread and p.parent = 0) order by p.id limit $2", soi.Slug, limit)
-			} else {
-				query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.slug = $1 and t.id = p.thread and p.parent = 0) order by p.id", soi.Slug)
-			}
-			r.RecursiveParentTree(query, &posts)
-			defer query.Close()
-		}
-	} else {
-		if desc {
-			if since == 0 || since == 100000000 {
-				query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.id = $1 and t.id = p.thread and p.parent = 0) where p.id < $2 order by p.id desc limit $3", soi.Id, since, limit)
-			} else {
-				query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.id = $1 and t.id = p.thread and p.parent = 0) where p.id < $2 order by p.id desc", soi.Id, since)
-			}
-			r.RecursiveParentTree(query, &posts)
-			defer query.Close()
-		} else {
-			if since == 0 || since == 100000000 {
-				query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.id = $1 and t.id = p.thread and p.parent = 0) order by p.id limit $2", soi.Id, limit)
-			} else {
-				query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.id = $1 and t.id = p.thread and p.parent = 0) order by p.id", soi.Id)
-			}
-			r.RecursiveParentTree(query, &posts)
-			defer query.Close()
-		}
-	}
-	if since != 0 && since != 100000000 {
-		posts = deleteSinceParent(posts, since)
-	}
-	return posts
-}
-
-func (r *ThreadRepository) PostsTree (soi models.IdOrSlug, limit int, since int, desc bool) models.Posts {
-	posts := models.Posts{}
-	var query *pgx.Rows
-	if soi.IsSlug {
-		if since == 100000000 {
-			query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.slug = $1 and t.id = p.thread and p.parent = 0) where p.id > $2 order by p.id", soi.Slug, -since)
-			r.RecursiveTree(query, &posts, limit, 0, desc)
-		} else {
-			query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.slug = $1 and t.id = p.thread and p.parent = 0) order by p.id", soi.Slug)
-			if since > 0  {
-				r.RecursiveTreeWithoutLimit(query, &posts, limit, since)
-			} else {
-				r.RecursiveTree(query, &posts, limit, since, desc)
-			}
-		}
-		defer query.Close()
-	} else {
-		if since == 100000000 {
-			query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.id = $1 and t.id = p.thread and p.parent = 0) where p.id > $2 order by p.id", soi.Id, -since)
-			r.RecursiveTree(query, &posts, limit, 0, desc)
-		} else {
-			query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.id = $1 and t.id = p.thread and p.parent = 0) order by p.id", soi.Id)
-			if since > 0  {
-				r.RecursiveTreeWithoutLimit(query, &posts, limit, since)
-			} else {
-				r.RecursiveTree(query, &posts, limit, since, desc)
-			}
-		}
-		defer query.Close()
-	}
-	if desc {
-		posts = reverse(posts)
-		if since == 0 || since == 100000000 {
-			posts = Limit(posts, limit)
-		}
-	}
-	if since != 0 && since != 100000000 {
-		posts = deleteSince(posts, since, limit)
-	}
-	return posts
-}
-
-func deleteSinceParent(posts models.Posts, since int) models.Posts {
-	var i int
-	for index, value := range posts {
-		if value.Id == since {
-			i = index + 1
-			break
-		}
-	}
-	if i <= len(posts) {
-		posts = posts[i:]
-	} else {
-		posts = posts[i-1:]
-	}
-	return posts
-}
-
-func deleteSince(posts models.Posts, since int, limit int) models.Posts {
-	var i int
-	for index, value := range posts {
-		if value.Id == since {
-			i = index + 1
-			break
-		}
-	}
-	if i <= len(posts) {
-		posts = posts[i:]
-	} else {
-		posts = posts[i-1:]
-	}
-	if limit <= len(posts) {
-		posts = posts[:limit]
-	}
-	return posts
-}
-
-func reverse(posts models.Posts) models.Posts {
-	for i := 0; i < len(posts)/2; i++ {
-		j := len(posts) - i - 1
-		posts[i], posts[j] = posts[j], posts[i]
-	}
-	return posts
-}
-
-func Limit(posts models.Posts, limit int) models.Posts {
-	if limit <= len(posts) {
-		posts = posts[:limit]
-	}
-	return posts
-}
-
-func (r * ThreadRepository) RecursiveTreeWithoutLimit(query *pgx.Rows, posts *models.Posts, limit int, since int) {
-	post := models.Post{}
-	var query1 *pgx.Rows
-	for query.Next() {
-		query.Scan(&post.Author, &post.Forum, &post.Id, &post.IsEdited, &post.Message, &post.Parent, &post.Thread, &post.Created)
-		if post.Author == "" {
-			return
-		}
-		*posts = append(*posts, post)
-		query1, _ = r.db.Query("select author, forum, id, isEdited, message, parent, thread, created from posts where parent = $1 order by id", post.Id)
-		r.RecursiveTreeWithoutLimit(query1, posts, limit, since)
-		query1.Close()
-	}
-}
-
-func (r *ThreadRepository) RecursiveTree(query *pgx.Rows, posts *models.Posts, limit int, since int, desc bool) {
-	post := models.Post{}
-	var query1 *pgx.Rows
-	if len(*posts) == limit && !desc {
-		return
-	}
-	for query.Next() {
-		query.Scan(&post.Author, &post.Forum, &post.Id, &post.IsEdited, &post.Message, &post.Parent, &post.Thread, &post.Created)
-		if post.Author == "" {
-			return
-		}
-		if len(*posts) == limit && !desc {
-			return
-		}
-		*posts = append(*posts, post)
-		if len(*posts) == limit && !desc {
-			return
-		}
-		query1, _ = r.db.Query("select author, forum, id, isEdited, message, parent, thread, created from posts where parent = $1 order by id", post.Id)
-		r.RecursiveTree(query1, posts, limit, since, desc)
-		query1.Close()
-	}
-}
-
-func (r *ThreadRepository) RecursiveParentTree(query *pgx.Rows, posts *models.Posts) {
-	post := models.Post{}
-	var query1 *pgx.Rows
-	for query.Next() {
-		query.Scan(&post.Author, &post.Forum, &post.Id, &post.IsEdited, &post.Message, &post.Parent, &post.Thread, &post.Created)
-		if post.Author == "" {
-			return
-		}
-		*posts = append(*posts, post)
-		query1, _ = r.db.Query("select author, forum, id, isEdited, message, parent, thread, created from posts where parent = $1 order by id", post.Id)
-		r.RecursiveParentTree(query1, posts)
-		query1.Close()
-	}
-}
 
