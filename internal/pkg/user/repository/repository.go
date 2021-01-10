@@ -1,16 +1,16 @@
 package repository
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
+	"github.com/jackc/pgx"
 )
 
 type UserRepository struct {
-	db *sql.DB
+	db *pgx.ConnPool
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
+func NewUserRepository(db *pgx.ConnPool) *UserRepository {
 	return &UserRepository{
 		db: db,
 	}
@@ -18,7 +18,7 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 
 func (r *UserRepository) FindByNickname(nickname string) (*models.User, *models.Error) {
 	user := models.User{}
-	err := r.db.QueryRow("select about, email, fullname, nickname from users where nickname = ?", nickname).
+	err := r.db.QueryRow("select about, email, fullname, nickname from users where nickname = $1", nickname).
 		Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
 
 	if err != nil {
@@ -33,9 +33,9 @@ func (r *UserRepository) FindByNickname(nickname string) (*models.User, *models.
 func (r *UserRepository) Create(nickname string, fullname string, about string, email string) (*models.Users, *models.Error) {
 	users := models.Users{}
 	user := models.User{}
-	_, err := r.db.Exec("insert into users(nickname, fullname, email, about) value(?, ?, ?, ?)", nickname, fullname, email, about)
+	_, err := r.db.Exec("insert into users(nickname, fullname, email, about) values($1, $2, $3, $4)", nickname, fullname, email, about)
 	if err != nil {
-		query, _ := r.db.Query("select about, email, fullname, nickname from users where nickname = ? union select about, email, fullname, nickname from users where email = ?", nickname, email)
+		query, _ := r.db.Query("select about, email, fullname, nickname from users where nickname = $1 union select about, email, fullname, nickname from users where email = $2", nickname, email)
 		defer query.Close()
 		for query.Next(){
 			query.Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
@@ -60,7 +60,7 @@ func (r *UserRepository) Update(nickname string, fullname string, about string, 
 		Fullname: fullname,
 		Nickname: nickname,
 	}
-	query, err := r.db.Query("select about, email, fullname, nickname from users where nickname = ?", nickname)
+	query, err := r.db.Query("select about, email, fullname, nickname from users where nickname = $1", nickname)
 	defer query.Close()
 	if !query.Next() {
 		return nil, &models.Error{
@@ -69,23 +69,23 @@ func (r *UserRepository) Update(nickname string, fullname string, about string, 
 	}
 	sql := "Update users set"
 	if about != "" {
-		sql += fmt.Sprintf(" about = \"%s\",", about)
+		sql += fmt.Sprintf(" about = '%s',", about)
 	}
 	if email != "" {
-		sql += fmt.Sprintf(" email = \"%s\",", email)
+		sql += fmt.Sprintf(" email = '%s',", email)
 	}
 	if fullname != "" {
-		sql += fmt.Sprintf(" fullname = \"%s\",", fullname)
+		sql += fmt.Sprintf(" fullname = '%s',", fullname)
 	}
 	sql = sql[:len(sql) - 1]
-	sql += " where nickname = ?"
+	sql += " where nickname = $1"
 	if about != "" || email != "" || fullname != "" {
 		_, err = r.db.Exec(sql, nickname)
 		if err != nil {
 			return nil, &models.Error{Message: "conflict"}
 		}
 	}
-	err = r.db.QueryRow("select about, email, fullname, nickname from users where nickname = ?", nickname).
+	err = r.db.QueryRow("select about, email, fullname, nickname from users where nickname = $1", nickname).
 		Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
 	if err != nil {
 			return nil, &models.Error{Message: "conflict"}

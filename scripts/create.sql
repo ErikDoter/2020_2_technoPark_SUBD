@@ -1,47 +1,42 @@
-use forum
+CREATE EXTENSION IF NOT EXISTS citext;
 
-create table users
+CREATE UNLOGGED TABLE users
 (
-    id       int auto_increment primary key,
-    nickname varchar(80) not null,
-    fullname varchar(80) not null,
-    email    varchar(80) not null,
-    about    text        not null,
-    unique (email),
-    unique(nickname)
+    id SERIAL primary key NOT NULL,
+    nickname CITEXT UNIQUE NOT NULL,
+    email    CITEXT UNIQUE      NOT NULL,
+    about    TEXT               NOT NULL,
+    fullname TEXT               NOT NULL
 );
 
-create table forums
+CREATE UNLOGGED TABLE forums
 (
-    id int auto_increment primary key,
-    slug varchar(80) not null,
-    title varchar(80) not null,
-    posts int unsigned default 0,
-    threads int unsigned default 0,
-    user varchar(80) not null,
-    unique(slug)
+    slug     CITEXT PRIMARY KEY                                   NOT NULL,
+    title    TEXT                                                 NOT NULL,
+    userf CITEXT  NOT NULL,
+    posts    INTEGER DEFAULT 0                                    NOT NULL,
+    threads  INTEGER DEFAULT 0                                    NOT NULL
 );
 
 create table threads
 (
-    id int auto_increment primary key,
-    author varchar(80) not null,
-    created TIMESTAMP(3),
-    forum varchar(80) not null,
+    id SERIAL primary key NOT NULL,
+    author CITEXT not null,
+    created TIMESTAMP(3) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    forum CITEXT not null,
     message text not null,
-    slug varchar(80) not null,
+    slug CITEXT UNIQUE not null,
     title varchar(80) not null,
-    votes int default 0,
-    unique(slug)
+    votes int default 0
 );
 
 create table posts
 (
-    id int auto_increment primary key,
-    author varchar(80) not null,
-    created TIMESTAMP(3),
-    forum varchar(80) not null,
-    isEdited bool DEFAULT false,
+    id SERIAL primary key not null,
+    author CITEXT not null,
+    created TIMESTAMP(3) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    forum CITEXT not null,
+    isEdited bool DEFAULT false not null,
     message text not null,
     parent int not null,
     thread int not null
@@ -49,44 +44,76 @@ create table posts
 
 create table votes
 (
-    id int auto_increment primary key,
-    nickname varchar(80) not null,
+    id serial primary key not null,
+    nickname CITEXT UNIQUE not null,
     thread int not null,
-    vote int,
-    unique(nickname)
+    vote int
 );
+
+CREATE FUNCTION  trigger_posts() RETURNS TRIGGER AS
+    $$
+BEGIN
+UPDATE forums
+SET posts = (posts + 1)
+WHERE slug = new.forum;
+RETURN new;
+END;
+$$ LANGUAGE plpgsql;
+
 
 CREATE TRIGGER triggerPosts
     AFTER INSERT
     ON posts
     for each row
-    update forums f
-    set f.posts = f.posts + 1
-    where f.slug = new.forum;
+    EXECUTE PROCEDURE trigger_posts();
+
+CREATE FUNCTION  trigger_threads() RETURNS TRIGGER AS
+    $$
+BEGIN
+UPDATE forums
+SET threads = (threads + 1)
+WHERE slug = new.forum;
+RETURN new;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER triggerThreads
     AFTER INSERT
     ON threads
     for each row
-    update forums f
-    set f.threads = f.threads + 1
-    where f.slug = new.forum;
+    EXECUTE PROCEDURE trigger_threads();
+
+CREATE FUNCTION  trigger_vote() RETURNS TRIGGER AS
+    $$
+BEGIN
+UPDATE threads
+SET votes = (votes + new.vote)
+WHERE id = new.thread;
+RETURN new;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER triggerVote
     AFTER INSERT
     ON votes
     for each row
-    update threads t
-    set t.votes = t.votes + new.vote
-    where t.id = new.thread;
+    EXECUTE PROCEDURE trigger_vote();
+
+CREATE FUNCTION  trigger_voteup() RETURNS TRIGGER AS
+    $$
+BEGIN
+UPDATE threads
+SET votes = (votes - old.vote + new.vote)
+WHERE id = new.thread;
+RETURN new;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER triggerVoteUp
     AFTER UPDATE
     ON votes
     for each row
-    update threads t
-    set t.votes = t.votes - old.vote + new.vote
-    where t.id = new.thread;
+    EXECUTE PROCEDURE trigger_voteup();
 
 
 

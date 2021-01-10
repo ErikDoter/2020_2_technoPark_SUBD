@@ -3,7 +3,6 @@ package apiserver
 import (
 	"fmt"
 	"github.com/gorilla/mux"
-	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/store"
 	userHandler "github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/user/delivery"
 	userRep "github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/user/repository"
 	userUC "github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/user/usecase"
@@ -19,13 +18,15 @@ import (
 	serviceHandler "github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/service/delivery"
 	serviceRep "github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/service/repository"
 	serviceUC "github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/service/usecase"
+	"github.com/jackc/pgx"
+	"log"
 	"net/http"
 )
 
 type APIServer struct {
 	config    *Config
 	router    *mux.Router
-	store     *store.Store
+	store     *pgx.ConnPool
 }
 
 func New(config *Config) *APIServer {
@@ -36,10 +37,36 @@ func New(config *Config) *APIServer {
 }
 
 func (s *APIServer) Start() error {
-
-	if err := s.configureStore(); err != nil {
-		return err
+	config := pgx.ConnPoolConfig{
+		ConnConfig:     pgx.ConnConfig{
+			Host:                 "localhost",
+			Port:                 5432,
+			Database:             "docker",
+			User:                 "docker",
+			Password:             "docker",
+			TLSConfig:            nil,
+			UseFallbackTLS:       false,
+			FallbackTLSConfig:    nil,
+			Logger:               nil,
+			LogLevel:             0,
+			Dial:                 nil,
+			RuntimeParams:        nil,
+			OnNotice:             nil,
+			CustomConnInfo:       nil,
+			CustomCancel:         nil,
+			PreferSimpleProtocol: false,
+			TargetSessionAttrs:   "",
+		},
+		MaxConnections: 100,
+		AfterConnect:   nil,
+		AcquireTimeout: 0,
 	}
+	connPool, err := pgx.NewConnPool(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.store = connPool
+	defer s.store.Close()
 
 	s.configureRouter()
 
@@ -49,27 +76,27 @@ func (s *APIServer) Start() error {
 }
 
 func (s *APIServer) InitHandler() (userHandler.UserHandler, forumHandler.ForumHandler, threadHandler.ThreadHandler, postHandler.PostHandler, serviceHandler.ServiceHandler){
-	UserRep := userRep.NewUserRepository(s.store.Db)
+	UserRep := userRep.NewUserRepository(s.store)
 	UserUC := userUC.NewUserUseCase(UserRep)
 	UserHandler := userHandler.UserHandler{
 		UseCase: UserUC,
 	}
-	ForumRep := forumRep.NewForumRepository(s.store.Db)
+	ForumRep := forumRep.NewForumRepository(s.store)
 	ForumUC := forumUC.NewForumUseCase(ForumRep)
 	ForumHandler := forumHandler.ForumHandler{
 		UseCase: ForumUC,
 	}
-	ThreadRep := threadRep.NewThreadRepository(s.store.Db)
+	ThreadRep := threadRep.NewThreadRepository(s.store)
 	ThreadUC := threadUC.NewThreadUseCase(ThreadRep)
 	ThreadHandler := threadHandler.ThreadHandler{
 		UseCase: ThreadUC,
 	}
-	PostRep := postRep.NewPostRepository(s.store.Db)
+	PostRep := postRep.NewPostRepository(s.store)
 	PostUC := postUC.NewPostUseCase(PostRep)
 	PostHandler := postHandler.PostHandler{
 		UseCase: PostUC,
 	}
-	ServiceRep := serviceRep.NewServiceRepository(s.store.Db)
+	ServiceRep := serviceRep.NewServiceRepository(s.store)
 	ServiceUC := serviceUC.NewServiceUseCase(ServiceRep)
 	ServiceHandler := serviceHandler.ServiceHandler{
 		UseCase: ServiceUC,
@@ -103,15 +130,4 @@ func (s *APIServer) configureRouter() {
 	//service
 	s.router.HandleFunc("/api/service/status", service.Status).Methods("GET")
 	s.router.HandleFunc("/api/service/clear", service.Clear)
-}
-
-func (s *APIServer) configureStore() error {
-	st := store.New(s.config.Store)
-	if err := st.Open(); err != nil {
-		return err
-	}
-
-	s.store = st
-
-	return nil
 }

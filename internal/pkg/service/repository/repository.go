@@ -1,15 +1,15 @@
 package repository
 
 import (
-	"database/sql"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
+	"github.com/jackc/pgx"
 )
 
 type ServiceRepository struct {
-	db *sql.DB
+	db *pgx.ConnPool
 }
 
-func NewServiceRepository(db *sql.DB) *ServiceRepository {
+func NewServiceRepository(db *pgx.ConnPool) *ServiceRepository {
 	return &ServiceRepository{
 		db: db,
 	}
