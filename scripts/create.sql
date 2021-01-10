@@ -9,6 +9,10 @@ CREATE UNLOGGED TABLE users
     fullname TEXT               NOT NULL
 );
 
+CREATE UNIQUE INDEX ON users (nickname, email);
+CREATE UNIQUE INDEX ON users (nickname, email, about, fullname);
+CREATE UNIQUE INDEX ON users (nickname DESC);
+
 CREATE UNLOGGED TABLE forums
 (
     slug     CITEXT PRIMARY KEY                                   NOT NULL,
@@ -26,14 +30,21 @@ create table threads
     forum CITEXT not null,
     message text not null,
     slug CITEXT UNIQUE not null,
-    title varchar(80) not null,
+    title text not null,
     votes int default 0
 );
 
-create table posts
+CREATE INDEX ON threads(slug, author);
+CREATE INDEX ON threads(forum, created ASC);
+CREATE INDEX ON threads(forum, created DESC);
+CREATE INDEX ON threads(slug, id);
+CREATE INDEX ON threads(id, forum);
+CREATE INDEX ON threads(slug, id, forum);
+
+create UNLOGGED table posts
 (
     id SERIAL primary key not null,
-    author CITEXT not null,
+    author CITEXT REFERENCES users (nickname) ON DELETE CASCADE not null,
     created TIMESTAMP(3) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
     forum CITEXT not null,
     isEdited bool DEFAULT false not null,
@@ -42,12 +53,17 @@ create table posts
     thread int not null
 );
 
+CREATE UNIQUE INDEX ON posts(id, thread);
+CREATE UNIQUE INDEX ON posts(id, author);
+CREATE INDEX ON posts(thread, id DESC);
+CREATE INDEX ON posts(thread, id ASC);
+
 create table votes
 (
-    id serial primary key not null,
-    nickname CITEXT UNIQUE not null,
+    nickname CITEXT  not null,
     thread int not null,
-    vote int
+    vote int,
+    PRIMARY KEY (thread, nickname)
 );
 
 CREATE FUNCTION  trigger_posts() RETURNS TRIGGER AS

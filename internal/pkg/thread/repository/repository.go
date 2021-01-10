@@ -41,6 +41,7 @@ func (r *ThreadRepository) CreatePosts(soi models.IdOrSlug, posts models.PostsMi
 	postsAnswer := models.Posts{}
 	var now = time.Now()
 	var err error
+	var forum string
 	if soi.IsSlug {
 		err = r.db.QueryRow("select id from threads where slug = $1", soi.Slug).
 			Scan(&thread.Id)
@@ -51,12 +52,12 @@ func (r *ThreadRepository) CreatePosts(soi models.IdOrSlug, posts models.PostsMi
 	if err != nil {
 		return nil, &models.Error{Message: "can't find thread"}
 	}
+	err2 := r.db.QueryRow("select forum from threads where id = $1", thread.Id).
+		Scan(&forum)
+	if err2 != nil {
+		fmt.Println(err)
+	}
 	for _, value := range posts {
-		var i int
-		err = r.db.QueryRow("select id from users where nickname = $1", value.Author).Scan(&i)
-		if err != nil {
-			return nil, &models.Error{Message: "can't find thread"}
-		}
 		if value.Parent != 0 {
 			err = r.db.QueryRow("select thread from posts where id = $1", value.Parent).
 				Scan(&post.Thread)
@@ -67,11 +68,12 @@ func (r *ThreadRepository) CreatePosts(soi models.IdOrSlug, posts models.PostsMi
 				return nil, &models.Error{Message: "can't find parent"}
 			}
 		}
-		_, err = r.db.Exec("insert into posts(author, message, parent, thread, created, forum) select $1, $2, $3, $4, $5, forum from threads where id = $6", value.Author, value.Message, value.Parent, thread.Id, now, thread.Id)
-		if err != nil {
-		}
-		err = r.db.QueryRow("select id, parent, author, message, isEdited, forum, thread, created from posts where id = (select MAX(id) from posts)").
+		err = r.db.QueryRow("insert into posts(author, message, parent, thread, created, forum) values($1, $2, $3, $4, $5, $6) RETURNING id, parent, author, message, isEdited,  forum, thread, created", value.Author, value.Message, value.Parent, thread.Id, now, forum).
 			Scan(&post.Id, &post.Parent, &post.Author, &post.Message, &post.IsEdited, &post.Forum, &post.Thread, &post.Created)
+		if err != nil {
+			fmt.Println(err)
+			return nil, &models.Error{Message: "can't find thread"}
+		}
 		postsAnswer = append(postsAnswer, post)
 	}
 	return &postsAnswer, nil
@@ -151,7 +153,6 @@ func (r *ThreadRepository) PostsFlat(soi models.IdOrSlug, limit int, since int, 
 	var query *pgx.Rows
 	post := models.Post{}
 	posts := models.Posts{}
-	fmt.Println(limit)
 	if soi.IsSlug {
 		if desc {
 			query, _ = r.db.Query("select p.author, p.forum, p.id, p.isEdited, p.message, p.parent, p.thread, p.created from threads t join posts p on (t.slug = $1 and t.id = p.thread) where p.id < $2 order by p.id desc limit $3", soi.Slug, since, limit)
@@ -168,7 +169,6 @@ func (r *ThreadRepository) PostsFlat(soi models.IdOrSlug, limit int, since int, 
 	for query.Next(){
 		err := query.Scan(&post.Author, &post.Forum, &post.Id, &post.IsEdited, &post.Message, &post.Parent, &post.Thread, &post.Created)
 		if err != nil {
-			fmt.Println(err)
 		}
 		posts = append(posts, post)
 	}

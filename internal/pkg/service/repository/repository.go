@@ -30,7 +30,7 @@ func (r *ServiceRepository) Status() *models.Status {
 
 func (r *ServiceRepository) Clear(){
 	r.db.Exec("truncate table posts")
-	r.db.Exec("truncate table users")
+	r.db.Exec("truncate table users cascade")
 	r.db.Exec("truncate table forums")
 	r.db.Exec("truncate table threads")
 	r.db.Exec("truncate table votes")
