@@ -2,8 +2,7 @@ CREATE EXTENSION IF NOT EXISTS citext;
 
 CREATE UNLOGGED TABLE users
 (
-    id SERIAL primary key NOT NULL,
-    nickname CITEXT UNIQUE NOT NULL,
+    nickname CITEXT PRIMARY KEY NOT NULL,
     email    CITEXT UNIQUE      NOT NULL,
     about    TEXT               NOT NULL,
     fullname TEXT               NOT NULL
@@ -17,17 +16,27 @@ CREATE UNLOGGED TABLE forums
 (
     slug     CITEXT PRIMARY KEY                                   NOT NULL,
     title    TEXT                                                 NOT NULL,
-    userf CITEXT  NOT NULL,
+    userf CITEXT REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
     posts    INTEGER DEFAULT 0                                    NOT NULL,
     threads  INTEGER DEFAULT 0                                    NOT NULL
 );
 
-create table threads
+CREATE UNLOGGED TABLE forum_users
+(
+    author CITEXT REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
+    slug   CITEXT REFERENCES forums (slug) ON DELETE CASCADE    NOT NULL,
+    PRIMARY KEY (slug, author)
+);
+
+CREATE INDEX ON forum_users (slug);
+CREATE INDEX ON forum_users (author);
+
+create UNLOGGED table threads
 (
     id SERIAL primary key NOT NULL,
-    author CITEXT not null,
+    author CITEXT REFERENCES users (nickname) ON DELETE CASCADE not null,
     created TIMESTAMP(3) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    forum CITEXT not null,
+    forum CITEXT REFERENCES forums (slug) ON DELETE CASCADE not null,
     message text not null,
     slug CITEXT,
     title text not null,
@@ -46,11 +55,11 @@ create UNLOGGED table posts
     id SERIAL primary key not null,
     author CITEXT REFERENCES users (nickname) ON DELETE CASCADE not null,
     created TIMESTAMP(3) WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    forum CITEXT not null,
+    forum CITEXT REFERENCES forums (slug) ON DELETE CASCADE not null,
     isEdited bool DEFAULT false not null,
     message text not null,
     parent int not null,
-    thread int not null,
+    thread int REFERENCES threads (id) ON DELETE CASCADE not null,
     path       INTEGER ARRAY               DEFAULT '{}'              NOT NULL
 );
 
@@ -61,10 +70,10 @@ CREATE INDEX ON posts(thread, path ASC);
 CREATE INDEX ON posts(thread, id DESC);
 CREATE INDEX ON posts(thread, id ASC);
 
-create table votes
+create UNLOGGED table votes
 (
-    nickname CITEXT  not null,
-    thread int not null,
+    nickname CITEXT REFERENCES users (nickname) ON DELETE CASCADE not null,
+    thread int REFERENCES threads (id) ON DELETE CASCADE not null,
     vote int,
     PRIMARY KEY (thread, nickname)
 );
@@ -75,10 +84,19 @@ CREATE FUNCTION update_path_check_parent() RETURNS TRIGGER AS
     $$
 DECLARE
 temp INT ARRAY;
+t integer;
 BEGIN
     IF new.parent ISNULL OR new.parent = 0 THEN
         new.path = ARRAY [new.id];
 ELSE
+
+SELECT thread
+INTO t
+FROM posts
+WHERE id = new.parent;
+IF t ISNULL OR t <> new.thread THEN
+            RAISE EXCEPTION 'Not in this thread ID ' USING HINT = 'Please check your parent ID';
+END IF;
 
 SELECT path
 INTO temp
@@ -161,6 +179,29 @@ CREATE TRIGGER triggerVoteUp
     ON votes
     for each row
     EXECUTE PROCEDURE trigger_voteup();
+
+CREATE FUNCTION  insert_forum_users() RETURNS TRIGGER AS
+    $$
+BEGIN
+INSERT INTO forum_users
+VALUES (new.author, new.forum)
+    ON CONFLICT DO NOTHING;
+RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER update_forum_users_thread
+    AFTER INSERT
+    ON threads
+    FOR EACH ROW
+    EXECUTE PROCEDURE insert_forum_users();
+
+CREATE TRIGGER update_forum_users_posts
+    AFTER INSERT
+    ON posts
+    FOR EACH ROW
+    EXECUTE PROCEDURE insert_forum_users();
 
 
 

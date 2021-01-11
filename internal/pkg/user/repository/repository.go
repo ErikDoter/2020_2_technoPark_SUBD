@@ -35,7 +35,7 @@ func (r *UserRepository) Create(nickname string, fullname string, about string, 
 	user := models.User{}
 	_, err := r.db.Exec("insert into users(nickname, fullname, email, about) values($1, $2, $3, $4)", nickname, fullname, email, about)
 	if err != nil {
-		query, _ := r.db.Query("select about, email, fullname, nickname from users where nickname = $1 union select about, email, fullname, nickname from users where email = $2", nickname, email)
+		query, _ := r.db.Query("select about, email, fullname, nickname from users where nickname = $1 or email = $2", nickname, email)
 		defer query.Close()
 		for query.Next(){
 			query.Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)

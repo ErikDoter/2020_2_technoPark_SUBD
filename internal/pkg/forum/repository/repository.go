@@ -24,14 +24,13 @@ func (r *ForumRepository) Create(title string, user string, slug string) (*model
 	if err1 != nil {
 		return nil, &models.Error{Message: "can't find user with this nickname"}
 	}
-	_, err := r.db.Exec("insert into forums(slug, title, userf) values($1, $2, $3)", slug, title, u.Nickname)
+	err := r.db.QueryRow("insert into forums(slug, title, userf) values($1, $2, $3) RETURNING posts, slug, threads, title, userf", slug, title, u.Nickname).
+		Scan(&forum.Posts, &forum.Slug, &forum.Threads, &forum.Title, &forum.User)
 	if err != nil {
 		 err1 = r.db.QueryRow("select posts, slug, title, userf, threads from forums where slug = $1", slug).
 			Scan(&forum.Posts, &forum.Slug, &forum.Title, &forum.User, &forum.Threads)
 		 return &forum, &models.Error{Message: "exist"}
 	}
-	err = r.db.QueryRow("select posts, slug, threads, title, userf from forums where slug = $1", slug).
-		Scan(&forum.Posts, &forum.Slug, &forum.Threads, &forum.Title, &forum.User)
 	return &forum, nil
 }
 
@@ -62,17 +61,17 @@ func (r *ForumRepository) FindUsers(slug string, since string, desc bool, limit 
 	users := models.Users{}
 	if desc {
 		if since == "." {
-			query, err = r.db.Query("select T.about, T.email, T.fullname, T.nickname from (        SELECT u.about, u.email, u.fullname, u.nickname, u.id        from forums f join threads t on f.slug = t.forum        join users u on t.author = u.nickname        where f.slug = $1        union        SELECT uu.about, uu.email, uu.fullname, uu.nickname, uu.id        from forums ff join threads tt on ff.slug = tt.forum        join posts pp on pp.thread = tt.id        join users uu on uu.nickname = pp.author        where ff.slug = $2    ) as T ORDER BY  lower(T.nickname) DESC LIMIT $3", slug, slug, limit)
+			query, err = r.db.Query("select u.about, u.email, u.fullname, u.nickname from forum_users fu join users u on (u.nickname = fu.author and fu.slug = $1) ORDER BY  lower(u.nickname) DESC LIMIT $2", slug, limit)
 		} else {
-			query, err = r.db.Query("select T.about, T.email, T.fullname, T.nickname from (        SELECT u.about, u.email, u.fullname, u.nickname, u.id        from forums f join threads t on f.slug = t.forum        join users u on t.author = u.nickname        where f.slug = $1        union        SELECT uu.about, uu.email, uu.fullname, uu.nickname, uu.id        from forums ff join threads tt on ff.slug = tt.forum        join posts pp on pp.thread = tt.id        join users uu on uu.nickname = pp.author        where ff.slug = $2    ) as T where   lower(T.nickname) <   lower($3::text) ORDER BY lower(T.nickname) DESC LIMIT $4", slug, slug, since, limit)
+			query, err = r.db.Query("select u.about, u.email, u.fullname, u.nickname from forum_users fu join users u on (u.nickname = fu.author and fu.slug = $1 and lower(u.nickname) <   lower($2::text)) ORDER BY lower(u.nickname) DESC LIMIT $3", slug, since, limit)
 		}
 	} else {
 		if since == "." {
-			query, err = r.db.Query("select T.about, T.email, T.fullname, T.nickname from (        SELECT u.about, u.email, u.fullname, u.nickname, u.id        from forums f join threads t on f.slug = t.forum        join users u on t.author = u.nickname        where f.slug = $1        union        SELECT uu.about, uu.email, uu.fullname, uu.nickname, uu.id        from forums ff join threads tt on ff.slug = tt.forum        join posts pp on pp.thread = tt.id        join users uu on uu.nickname = pp.author        where ff.slug = $2    ) as T ORDER BY  lower(T.nickname) LIMIT $3", slug, slug,  limit)
+			query, err = r.db.Query("select u.about, u.email, u.fullname, u.nickname from forum_users fu join users u on (u.nickname = fu.author and fu.slug = $1) ORDER BY  lower(u.nickname) LIMIT $2", slug, limit)
 			if err != nil {
 			}
 		} else {
-			query, err = r.db.Query("select T.about, T.email, T.fullname, T.nickname from (        SELECT u.about, u.email, u.fullname, u.nickname, u.id        from forums f join threads t on f.slug = t.forum        join users u on t.author = u.nickname        where f.slug = $1        union        SELECT uu.about, uu.email, uu.fullname, uu.nickname, uu.id        from forums ff join threads tt on ff.slug = tt.forum        join posts pp on pp.thread = tt.id        join users uu on uu.nickname = pp.author        where ff.slug = $2   ) as T where   lower(T.nickname) >   lower($3::text) ORDER BY  lower(T.nickname) LIMIT $4", slug, slug, since, limit)
+			query, err = r.db.Query("select u.about, u.email, u.fullname, u.nickname from forum_users fu join users u on (u.nickname = fu.author and fu.slug = $1 and lower(u.nickname) >   lower($2::text)) ORDER BY  lower(u.nickname) LIMIT $3", slug, since, limit)
 		}
 	}
 	if err != nil {

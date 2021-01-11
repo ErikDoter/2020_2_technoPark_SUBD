@@ -52,25 +52,17 @@ func (r *ThreadRepository) CreatePosts(soi models.IdOrSlug, posts models.PostsMi
 	if err != nil {
 		return nil, &models.Error{Message: "can't find thread"}
 	}
-	err2 := r.db.QueryRow("select forum from threads where id = $1", thread.Id).
+	r.db.QueryRow("select forum from threads where id = $1", thread.Id).
 		Scan(&forum)
-	if err2 != nil {
-	}
 	for _, value := range posts {
-		if value.Parent != 0 {
-			err = r.db.QueryRow("select thread from posts where id = $1", value.Parent).
-				Scan(&post.Thread)
-			if err != nil {
-				return nil, &models.Error{Message: "can't find parent"}
-			}
-			if post.Thread != thread.Id {
-				return nil, &models.Error{Message: "can't find parent"}
-			}
-		}
 		err = r.db.QueryRow("insert into posts(author, message, parent, thread, created, forum) values($1, $2, $3, $4, $5, $6) RETURNING id, parent, author, message, isEdited,  forum, thread, created", value.Author, value.Message, value.Parent, thread.Id, now, forum).
 			Scan(&post.Id, &post.Parent, &post.Author, &post.Message, &post.IsEdited, &post.Forum, &post.Thread, &post.Created)
 		if err != nil {
-			return nil, &models.Error{Message: "can't find thread"}
+			if err.Error() == "ERROR: Not in this thread ID  (SQLSTATE P0001)" {
+				return nil, &models.Error{Message: "can't find parent"}
+			} else {
+				return nil, &models.Error{Message: "can't find thread"}
+			}
 		}
 		postsAnswer = append(postsAnswer, post)
 	}
@@ -91,22 +83,26 @@ func (r *ThreadRepository) Update(soi models.IdOrSlug, title string, message str
 	if err != nil {
 		return nil, &models.Error{Message: "can't find thread"}
 	}
-	if title != "" {
-		_, err = r.db.Exec("update threads set  title = $1 where id = $2", title, thread.Id)
-	}
-	if message != "" {
-		_, err = r.db.Exec("update threads set  message = $1 where id = $2", message, thread.Id)
-	}
 	id := thread.Id
-	err = r.db.QueryRow("select id, title, author, forum, message, votes, slug, created from threads where id = $1", id).
-		Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Slug, &thread.Created)
+	if title != "" || message != "" {
+		if title != "" {
+			r.db.QueryRow("update threads set  title = $1 where id = $2 RETURNING id, title, author, forum, message, votes, slug, created", title, id).
+				Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Slug, &thread.Created)
+		}
+		if message != "" {
+			r.db.QueryRow("update threads set  message = $1 where id = $2 RETURNING id, title, author, forum, message, votes, slug, created", message, id).
+				Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Slug, &thread.Created)
+		}
+	} else {
+		r.db.QueryRow("select id, title, author, forum, message, votes, slug, created from threads where id = $1", id).
+			Scan(&thread.Id, &thread.Title, &thread.Author, &thread.Forum, &thread.Message, &thread.Votes, &thread.Slug, &thread.Created)
+	}
 	return &thread, nil
 }
 
 func (r *ThreadRepository) Vote(soi models.IdOrSlug, nickname string, voice int ) (*models.Thread, *models.Error) {
 	thread := models.Thread{}
 	var err error
-	var i int
 	if soi.IsSlug {
 		err = r.db.QueryRow("select id from threads where slug = $1", soi.Slug).
 			Scan(&thread.Id)
@@ -114,16 +110,12 @@ func (r *ThreadRepository) Vote(soi models.IdOrSlug, nickname string, voice int 
 		err = r.db.QueryRow("select id from threads where id = $1", soi.Id).
 			Scan(&thread.Id)
 	}
-	err2 := r.db.QueryRow("select id from users where nickname = $1", nickname).Scan(&i)
-	if err2 != nil {
-		return nil, &models.Error{Message: "can't find thread"}
-	}
 	if err != nil {
 		return nil, &models.Error{Message: "can't find thread"}
 	}
-	_, err = r.db.Exec("insert into votes(nickname, thread, vote) values($1, $2, $3);", nickname, thread.Id, voice)
+	_, err = r.db.Exec("insert into votes(nickname, thread, vote) values($1, $2, $3) ON CONFLICT (thread, nickname) DO UPDATE SET vote = $3;", nickname, thread.Id, voice)
 	if err != nil {
-		_, err = r.db.Exec("update votes set vote = $1 where thread = $2 and nickname = $3", voice, thread.Id, nickname)
+		return nil, &models.Error{Message: "can't find thread"}
 	}
 	id := thread.Id
 	err = r.db.QueryRow("select id, title, author, forum, message, votes, slug, created from threads where id = $1", id).

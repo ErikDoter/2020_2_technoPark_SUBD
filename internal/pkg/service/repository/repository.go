@@ -32,6 +32,6 @@ func (r *ServiceRepository) Clear(){
 	r.db.Exec("truncate table posts")
 	r.db.Exec("truncate table users cascade")
 	r.db.Exec("truncate table forums")
-	r.db.Exec("truncate table threads")
+	r.db.Exec("truncate table threads cascade")
 	r.db.Exec("truncate table votes")
 }

@@ -60,17 +60,16 @@ func (r *PostRepository) DetailsPost(id int) models.Post {
 
 func (r *PostRepository) Update(id int, message string) models.Post {
 	isEdited := true
-	var err error
 	var mes string
 	post := models.Post{}
-	err = r.db.QueryRow("select message from posts where id = $1", id).
+	r.db.QueryRow("select message from posts where id = $1", id).
 		Scan(&mes)
 	if message != "" && mes != message {
-		_, err = r.db.Exec("update posts set message = $1, isEdited = $2 where id = $3", message, isEdited, id)
-	}
-	err = r.db.QueryRow("select author, forum, id, message, isEdited, parent, thread, created from posts where id = $1", id).
-		Scan(&post.Author, &post.Forum, &post.Id, &post.Message, &post.IsEdited, &post.Parent, &post.Thread, &post.Created)
-	if err != nil {
+		r.db.QueryRow("update posts set message = $1, isEdited = $2 where id = $3 RETURNING author, forum, id, message, isEdited, parent, thread, created", message, isEdited, id).
+			Scan(&post.Author, &post.Forum, &post.Id, &post.Message, &post.IsEdited, &post.Parent, &post.Thread, &post.Created)
+	} else {
+		r.db.QueryRow("select author, forum, id, message, isEdited, parent, thread, created from posts where id = $1", id).
+			Scan(&post.Author, &post.Forum, &post.Id, &post.Message, &post.IsEdited, &post.Parent, &post.Thread, &post.Created)
 	}
 	return post
 }
