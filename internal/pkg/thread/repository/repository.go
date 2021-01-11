@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/ErikDoter/2020_2_technoPark_SUBD/internal/pkg/models"
 	"github.com/jackc/pgx"
-	"time"
+	"github.com/jackc/pgerrcode"
 )
 
 type ThreadRepository struct {
@@ -35,38 +35,55 @@ func (r *ThreadRepository) Find(soi models.IdOrSlug) (*models.Thread, *models.Er
 	return &thread, nil
 }
 
-func (r *ThreadRepository) CreatePosts(soi models.IdOrSlug, posts models.PostsMini) (*models.Posts, *models.Error) {
+func (r *ThreadRepository) CreatePosts(soi models.IdOrSlug, posts models.Posts) (*models.Posts, *models.Error) {
 	thread := models.Thread{}
-	post := models.Post{}
-	postsAnswer := models.Posts{}
-	var now = time.Now()
 	var err error
 	var forum string
 	if soi.IsSlug {
-		err = r.db.QueryRow("select id from threads where slug = $1", soi.Slug).
-			Scan(&thread.Id)
+		err = r.db.QueryRow("select id, forum from threads where slug = $1", soi.Slug).
+			Scan(&thread.Id, &forum)
 	} else {
-		err = r.db.QueryRow("select id from threads where id = $1", soi.Id).
-			Scan(&thread.Id)
+		err = r.db.QueryRow("select id, forum from threads where id = $1", soi.Id).
+			Scan(&thread.Id, &forum)
 	}
 	if err != nil {
 		return nil, &models.Error{Message: "can't find thread"}
 	}
-	r.db.QueryRow("select forum from threads where id = $1", thread.Id).
-		Scan(&forum)
-	for _, value := range posts {
-		err = r.db.QueryRow("insert into posts(author, message, parent, thread, created, forum) values($1, $2, $3, $4, $5, $6) RETURNING id, parent, author, message, isEdited,  forum, thread, created", value.Author, value.Message, value.Parent, thread.Id, now, forum).
-			Scan(&post.Id, &post.Parent, &post.Author, &post.Message, &post.IsEdited, &post.Forum, &post.Thread, &post.Created)
-		if err != nil {
-			if err.Error() == "ERROR: Not in this thread ID  (SQLSTATE P0001)" {
+	query := "INSERT INTO posts (author, forum, message, parent, thread) VALUES "
+	if len(posts) == 0 {
+		return &posts, nil
+	}
+	for i, _ := range posts {
+		if i != 0 {
+			query +=  ", "
+		}
+		(posts)[i].Forum = forum
+		(posts)[i].Thread = thread.Id
+		query += fmt.Sprintf("('%s', '%s', '%s', %d, %d) ", (posts)[i].Author, (posts)[i].Forum, (posts)[i].Message, (posts)[i].Parent, (posts)[i].Thread)
+	}
+	query += "RETURNING id, created"
+	queryRow, err := r.db.Query(query)
+	if err != nil {
+		return nil, &models.Error{Message: "can't find parent"}
+	}
+	defer queryRow.Close()
+	for i, _ := range posts {
+		if queryRow.Next() {
+			err := queryRow.Scan(&(posts)[i].Id, &(posts)[i].Created)
+			if err != nil {
 				return nil, &models.Error{Message: "can't find parent"}
-			} else {
-				return nil, &models.Error{Message: "can't find thread"}
 			}
 		}
-		postsAnswer = append(postsAnswer, post)
 	}
-	return &postsAnswer, nil
+	if queryRow.Err() != nil {
+		switch queryRow.Err().(pgx.PgError).Code {
+		case pgerrcode.ForeignKeyViolation:
+			return nil, &models.Error{Message: "can't find thread"}
+		default:
+			return nil, &models.Error{Message: "can't find parent"}
+		}
+	}
+	return &posts, nil
 }
 
 

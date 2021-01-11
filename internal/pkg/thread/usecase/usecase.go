@@ -33,7 +33,7 @@ func (u *ThreadUseCase) Find(slugOrId string) (*models.Thread, *models.Error) {
 	return thread, nil
 }
 
-func (u *ThreadUseCase) CreatePosts(slugOrId string, posts models.PostsMini) (*models.Posts, *models.Error) {
+func (u *ThreadUseCase) CreatePosts(slugOrId string, posts models.Posts) (*models.Posts, *models.Error) {
 	soi := models.IdOrSlug{}
 	result, err1 := strconv.Atoi(slugOrId)
 	if err1 != nil {

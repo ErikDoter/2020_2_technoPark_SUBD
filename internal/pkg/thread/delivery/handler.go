@@ -40,7 +40,7 @@ func (uh *ThreadHandler) Find(w http.ResponseWriter, r *http.Request) {
 func (uh *ThreadHandler) CreatePosts (w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slug := vars["slug_or_id"]
-	posts := models.PostsMini{}
+	posts := models.Posts{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&posts)
 	if err != nil {

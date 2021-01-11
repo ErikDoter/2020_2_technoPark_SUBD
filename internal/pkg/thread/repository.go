@@ -6,7 +6,7 @@ import (
 
 type Repository interface {
 	Find(soi models.IdOrSlug) (*models.Thread, *models.Error)
-	CreatePosts(soi models.IdOrSlug, posts models.PostsMini) (*models.Posts, *models.Error)
+	CreatePosts(soi models.IdOrSlug, posts models.Posts) (*models.Posts, *models.Error)
 	Update(soi models.IdOrSlug, title string, message string) (*models.Thread, *models.Error)
 	Vote(soi models.IdOrSlug, nickname string, voice int ) (*models.Thread, *models.Error)
 	Check(soi models.IdOrSlug) *models.Error
